@@ -131,7 +131,7 @@ class InternSchedule:
         NER_count = self.section_count(Section.NER)
         # NG_A_count = self.section_count(Section.NG_A)
         satisfaction = self.satisfaction()
-        print(f"{self.name}...EICU: {EICU_count}, ER: {ER_count}, ICU: {ICU_count}, NER: {NER_count}, PaidOFF: {self.paidoff}, satisfaction: {satisfaction}")
+        print(f"{self.name}...EICU: {EICU_count}, ER: {ER_count}, ICU: {ICU_count}, NER: {NER_count}, PaidOFF: {self.intern.paidoff}, satisfaction: {satisfaction}")
     
     def satisfaction(self):
         score = 0
