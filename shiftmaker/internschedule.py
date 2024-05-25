@@ -118,15 +118,20 @@ class InternSchedule:
                     return False
 
         return True
+    
+    def set_NG_B(self):
+        for date in self.intern.extra_ng_dates:
+            if self.schedule[date] == Section.OFF:
+                self.schedule[date] = Section.NG_B
 
     def print_workcount(self):
         ER_count = self.section_count(Section.ER)
         EICU_count = self.section_count(Section.EICU)
         ICU_count = self.section_count(Section.ICU)
         NER_count = self.section_count(Section.NER)
-        NG_A_count = self.section_count(Section.NG_A)
+        # NG_A_count = self.section_count(Section.NG_A)
         satisfaction = self.satisfaction()
-        print(f"{self.name}...EICU: {EICU_count}, ER: {ER_count}, ICU: {ICU_count}, NER: {NER_count}, PaidOFF: {NG_A_count}, satisfaction: {satisfaction}")
+        print(f"{self.name}...EICU: {EICU_count}, ER: {ER_count}, ICU: {ICU_count}, NER: {NER_count}, PaidOFF: {self.paidoff}, satisfaction: {satisfaction}")
     
     def satisfaction(self):
         score = 0
@@ -134,9 +139,9 @@ class InternSchedule:
         EICU_one_miss = False
         consequtive_off_count = 0
         for date in self.datelist:
-            # 週末の勤務で -5
+            # 週末の勤務で -10
             if not self.is_off(date) and date.weekday() in (5,6):
-                score -= 5
+                score -= 10
             # EICU連続勤務で加点 2連 +1 3連 +4 4連 +9 5連 +16　
             if self.schedule[date] == Section.EICU:
                 consequtive_EICU_count += 1
@@ -153,7 +158,7 @@ class InternSchedule:
                 score += (consequtive_off_count - 1)**3
             else:
                 consequtive_off_count = 0
-            # NG_Bがoffなら +8
+            # NG_Bがoffなら +15
             if self.is_off(date) and date in self.intern.extra_ng_dates:
-                score += 8
+                score += 15
         return score

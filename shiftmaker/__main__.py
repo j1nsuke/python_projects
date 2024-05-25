@@ -110,6 +110,7 @@ def main():
         final_team_schedules = finals[0]
         final_sec_counts = finals[1]
         for intern in final_team_schedules:
+            intern.set_NG_B()
             print(f"{intern.name} {intern.role}, ", end='')
             for date, value in intern.schedule.items():
                 print(f"{value.value}", end=',')
