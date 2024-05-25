@@ -1,4 +1,6 @@
+import calendar
 import datetime
+import math
 from enum import Enum
 
 class Section(Enum):
@@ -12,18 +14,33 @@ class Section(Enum):
 class Role(Enum):
     ER = 'ER'
     ICU = 'ICU'
-class Request:
-    def __init__(self, name: str, role: Role, paidoff: int, ng_dates: list, extra_ng_dates: list):
-        self.name = name
-        self.role = role
-        self.paidoff = paidoff
-        self.ng_dates = ng_dates
-        self.extra_ng_dates = extra_ng_dates
 class Target_year_month:
     def __init__(self, year: int, month: int):
         self.year = year
         self.month = month
-def Intern_counter(request_list):
+
+
+weekday_target_counts = {
+    Section.ICU: 3,
+    Section.ER: 3,
+    Section.NER: 3,
+    Section.EICU: 3
+}
+weekend_target_counts = {
+    Section.ICU: 2,
+    Section.ER: 3,
+    Section.NER: 3,
+    Section.EICU: 3
+}
+
+intern_count = {
+    Role.ICU: 5,
+    Role.ER: 15
+}
+
+target_ym = Target_year_month(2024, 6)
+
+def intern_counter(request_list):
     intern_count = {}
     er_count = 0
     icu_count = 0
@@ -35,15 +52,10 @@ def Intern_counter(request_list):
     intern_count[Role.ER] = er_count
     intern_count[Role.ICU] = icu_count
     return intern_count
-def Convert_to_date(req_list, year: int, month: int):
-    request_cals = []
-    for item in req_list:
-        ng_dates_list = [datetime.date(year, month, day) for day in item.ng_dates]
-        extra_ng_dates_list = [datetime.date(year, month, day) for day in item.extra_ng_dates]
-        intern_request = Request(item.name, item.role, item.paidoff, ng_dates_list, extra_ng_dates_list)
-        request_cals.append(intern_request)
-    return request_cals
-def Work_count_calculator(target_ym: Target_year_month, intern_count):
+    
+
+
+def work_count_calculator(target_ym: Target_year_month, intern_count):
     days_in_month = calendar.monthrange(target_ym.year, target_ym.month)[1]
     datelist = [datetime.date(target_ym.year, target_ym.month, day) for day in range(1,  days_in_month + 1)]
 
@@ -77,3 +89,19 @@ def Work_count_calculator(target_ym: Target_year_month, intern_count):
             print(f"{role}-{section} = {count}")
     
     return work_counts
+ 
+
+
+'''
+work_counts = {
+    Role.ER: {
+        Section.EICU: 6,
+        Section.ER: 6,
+        Section.NER: 6
+    },
+    Role.ICU: {
+        Section.ICU: 17,
+        Section.NER: 3
+    }
+}
+'''

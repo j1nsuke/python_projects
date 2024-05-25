@@ -1,7 +1,7 @@
 import argparse
 import datetime
 from operator import itemgetter
-from lib import Request, Target_year_month, Role, Section, Convert_to_date
+from lib import *
 from internschedule import InternSchedule
 from evaluator import calc_daily_section_counts, intern_satisfaction_stats
 from modifier import ranking_swap_schedule
@@ -41,6 +41,8 @@ weekend_target_counts = {
     Section.NER: 3,
     Section.EICU: 3
 }
+
+''' # 任意で指定したければこちら
 work_counts = {
     Role.ER: {
         Section.EICU: 6,
@@ -52,8 +54,7 @@ work_counts = {
         Section.NER: 3
     }
 }
-
-
+'''
 
 #############################################################################
 
@@ -68,6 +69,10 @@ args = parser.parse_args()
 def main():
     target_ym = Target_year_month(year = args.year, month = args.month)
     monthly_requests = Convert_to_date(req_list, target_ym.year, target_ym.month)
+
+    intern_count = Intern_counter(monthly_requests)
+
+    work_counts = Work_count_calculator(target_ym, intern_count)
 
     many_schedules = []
     # 初期シフトをn=20回、その変更をm=5回ずつ模索、合計n*m=100回のシフト作成を行う

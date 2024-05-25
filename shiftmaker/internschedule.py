@@ -4,7 +4,6 @@ import random
 from copy import deepcopy
 from lib import *
 
-
 class InternSchedule:
     def __init__(self, intern: Request, target_ym: Target_year_month):
         self.intern = intern
