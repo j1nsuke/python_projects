@@ -4,6 +4,7 @@ import random
 from copy import deepcopy
 from lib import *
 
+
 class InternSchedule:
     def __init__(self, intern: Request, target_ym: Target_year_month):
         self.intern = intern
@@ -39,14 +40,14 @@ class InternSchedule:
             self.schedule = deepcopy(protoschedule)
             if self.intern.role == Role.ER: # ERの勤務を順にランダムに割り付け
                 # EICUを割り当て
-                for _ in range(6):
+                for _ in range(work_counts[self.intern.role][Section.EICU]):
                     while True:
                         random_day = datetime.date(self.year, self.month, random.randint(1, self.days_in_month()))
                         if self.schedule[random_day] == Section.OFF:
                             self.schedule[random_day] = Section.EICU
                             break
                 # ERを割り当て
-                for _ in range(6 - self.intern.paidoff):
+                for _ in range(work_counts[self.intern.role][Section.ER] - self.intern.paidoff):
                     while True:
                         random_day = datetime.date(self.year, self.month, random.randint(1, self.days_in_month()))
                         if self.schedule[random_day] == Section.OFF:
@@ -55,7 +56,7 @@ class InternSchedule:
 
             if self.intern.role == Role.ICU: #　ICUの勤務をランダムに割り付け
                 # ICUを割り当て
-                for _ in range(17 - self.intern.paidoff):
+                for _ in range(work_counts[self.intern.role][Section.ICU] - self.intern.paidoff):
                     while True:
                         random_day = datetime.date(self.year, self.month, random.randint(1, self.days_in_month()))
                         if self.schedule[random_day] == Section.OFF:
@@ -63,7 +64,7 @@ class InternSchedule:
                             break
 
             if self.intern.role == Role.ER: #　NERをわりつけ
-                for _ in range(6):
+                for _ in range(work_counts[self.intern.role][Section.NER]):
                     if len(self.find_NER_assignable()) == 0:
                         restart = True
                     else:
@@ -71,7 +72,7 @@ class InternSchedule:
                         self.schedule[random_day] = Section.NER
 
             if self.intern.role == Role.ICU: #　NERをわりつけ
-                for _ in range(3):
+                for _ in range(work_counts[self.intern.role][Section.NER]):
                     if len(self.find_NER_assignable()) == 0:
                         restart = True
                     else:

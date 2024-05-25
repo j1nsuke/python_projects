@@ -41,6 +41,19 @@ weekend_target_counts = {
     Section.NER: 3,
     Section.EICU: 3
 }
+work_counts = {
+    Role.ER: {
+        Section.EICU: 6,
+        Section.ER: 6,
+        Section.NER: 6
+    },
+    Role.ICU: {
+        Section.ICU: 17,
+        Section.NER: 3
+    }
+}
+
+
 
 #############################################################################
 
@@ -106,3 +119,5 @@ def main():
         for intern in final_team_schedules:
             intern.print_workcount()
         print("================================================")
+
+main()
