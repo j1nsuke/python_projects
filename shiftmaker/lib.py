@@ -1,5 +1,6 @@
 import datetime
 import calendar
+import math
 from enum import Enum
 
 class Section(Enum):
@@ -44,7 +45,7 @@ def Convert_to_date(req_list, year: int, month: int):
         intern_request = Request(item.name, item.role, item.paidoff, ng_dates_list, extra_ng_dates_list)
         request_cals.append(intern_request)
     return request_cals
-def Work_count_calculator(target_ym: Target_year_month, intern_count):
+def Work_count_calculator(target_ym: Target_year_month, intern_count, weekday_target_counts, weekend_target_counts):
     days_in_month = calendar.monthrange(target_ym.year, target_ym.month)[1]
     datelist = [datetime.date(target_ym.year, target_ym.month, day) for day in range(1,  days_in_month + 1)]
 

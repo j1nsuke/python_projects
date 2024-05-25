@@ -72,7 +72,7 @@ def main():
 
     intern_count = Intern_counter(monthly_requests)
 
-    work_counts = Work_count_calculator(target_ym, intern_count)
+    work_counts = Work_count_calculator(target_ym, intern_count, weekday_target_counts, weekend_target_counts)
 
     many_schedules = []
     # 初期シフトをn=20回、その変更をm=5回ずつ模索、合計n*m=100回のシフト作成を行う
