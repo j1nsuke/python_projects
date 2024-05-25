@@ -80,7 +80,7 @@ def main():
         initial_team_schedules = []
         for request in monthly_requests:
             intern_schedule = InternSchedule(request, target_ym)
-            intern_schedule.assign_schedule()
+            intern_schedule.assign_schedule(work_counts)
             initial_team_schedules.append(intern_schedule)
         for j in range(5):
             temp_team_schedules, temp_sec_counts, temp_score, improvement_history = ranking_swap_schedule(initial_team_schedules, weekday_target_counts, weekend_target_counts)

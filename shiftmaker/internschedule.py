@@ -32,7 +32,7 @@ class InternSchedule:
                     NER_assignable.append(day)
         return NER_assignable
 
-    def assign_schedule(self):
+    def assign_schedule(self, work_counts):
         protoschedule = deepcopy(self.protoschedule)
         for trial in range (500):
             restart = False
