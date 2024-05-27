@@ -17,7 +17,7 @@ class Section(Enum):
 class Daily_sections:
     def __init__(self, date:datetime.date) -> None:
         self.date = date
-        self.day_section = {
+        self.day_staff = {
                             Section.d_30591: None,
                             Section.d_30595: None,
                             Section.d_30599: None,
@@ -26,7 +26,7 @@ class Daily_sections:
                             Section.d_30594: None,
                             Section.d_Efree: []
         }
-        self.night_section ={
+        self.night_staff ={
                             Section.n_30595: None,
                             Section.n_30599: None,
                             Section.n_30596: None
@@ -46,54 +46,91 @@ class Daily_sections:
         return daily_assignable_staffs
 
     # 日夜連続勤務　要検討！
-    def assign_main_staff(self, date, staff):
-        while self.section_unfilled:
-            staff = random.choice(staffs)
-            # 30596の日勤、夜勤
-            if staff.can_30596 and staff.can_work_day(date):
-                self.day_section[Section.d_30596] = staff
+    def assign_main_staff(self, daily_assignable_staffs):
+        daily_staff = daily_assignable_staffs
+        for i in range(100):
+            if self.section_filled():
                 break
-            if staff.can_30596 and staff.can_work_night(date):
-                self.night_section[Section.n_30596] = staff
-                break
+            #30596の日勤、夜勤
+            if self.day_staff[Section.d_30596] is None:    
+                d_staff = random.choice(daily_staff[0])
+                if d_staff.can_30596:
+                    self.day_staff[Section.d_30596] = d_staff
+                    daily_staff[0].remove(d_staff)
+            if self.night_staff[Section.n_30596] is None:
+                if self.day_staff[Section.d_30596] in daily_staff[1]:
+                    n_staff = self.day_staff[Section.d_30596]
+                    self.night_staff[Section.n_30596] = n_staff
+                    daily_staff[1].remove(n_staff)
+                else:
+                    for _ in range(100):
+                        n_staff = random.choice(daily_staff[1])
+                        if n_staff.can_30596:
+                            self.night_staff[Section.n_30596] = n_staff
+                            daily_staff[1].remove(n_staff)
+                            break
             # 30595の日勤、夜勤
-            if staff.can_30595 and staff.can_work_day(date):
-                self.day_section[Section.d_30595] = staff
-                break
-            if staff.can_30595 and staff.can_work_night(date):
-                self.night_section[Section.n_30595] = staff
-                break
-            # 30594の日勤
-            if staff.can_30594 and staff.can_work_day(date):
-                self.day_section[Section.d_30594] = staff
-                break
+            if self.day_staff[Section.d_30595] is None:    
+                d_staff = random.choice(daily_staff[0])
+                if d_staff.can_30595:
+                    self.day_staff[Section.d_30595] = d_staff
+                    daily_staff[0].remove(d_staff)
+            if self.night_staff[Section.n_30595] is None:
+                if self.day_staff[Section.d_30595] in daily_staff[1]:
+                    n_staff = self.day_staff[Section.d_30595]
+                    self.night_staff[Section.n_30595] = n_staff
+                    daily_staff[1].remove(n_staff)
+                else:
+                    for _ in range(100):
+                        n_staff = random.choice(daily_staff[1])
+                        if n_staff.can_30595:
+                            self.night_staff[Section.n_30595] = n_staff
+                            daily_staff[1].remove(n_staff)
+                            break
+            # 30594の日勤、夜勤
+            if self.day_staff[Section.d_30594] is None:    
+                d_staff = random.choice(daily_staff[0])
+                if d_staff.can_30594:
+                    self.day_staff[Section.d_30594] = d_staff
+                    daily_staff[0].remove(d_staff)
             # 30599の日勤、夜勤
-            if staff.can_30599 and staff.can_work_day(date):
-                self.day_section[Section.d_30599] = staff
-                break
-            if staff.can_30599 and staff.can_work_night(date):
-                self.night_section[Section.n_30599] = staff
-                break
-    
+            if self.day_staff[Section.d_30599] is None:    
+                d_staff = random.choice(daily_staff[0])
+                if d_staff.can_30599:
+                    self.day_staff[Section.d_30599] = d_staff
+                    daily_staff[0].remove(d_staff)
+            if self.night_staff[Section.n_30599] is None:
+                if self.day_staff[Section.d_30599] in daily_staff[1]:
+                    n_staff = self.day_staff[Section.d_30599]
+                    self.night_staff[Section.n_30599] = n_staff
+                    daily_staff[1].remove(n_staff)
+                else:
+                    for _ in range(100):
+                        n_staff = random.choice(daily_staff[1])
+                        if n_staff.can_30599:
+                            self.night_staff[Section.n_30599] = n_staff
+                            daily_staff[1].remove(n_staff)
+                            break
+    '''
     # EICU, ICU freeの割り振り方　要検討！
-    def assign_sub_staff(self, date, staff):
-        staff = random.choice(staffs)
-        if staff.can_work_day(date):
-            self.day_section[Section.d_Efree].append(staff)
-            self.day_section[Section.d_Ifree].append(staff)
-
-    def section_unfilled(self)->bool:
-        if (self.day_30594 != None and
-            self.day_30596 != None and
-            self.day_30595 != None and
-            self.day_30599 != None and
-            self.nig_30596 != None and
-            self.nig_30595 != None and
-            self.nig_30599 != None
-            ):
-            return True
+    def assign_sub_staff(self, daily_assignable_staffs):
+        daily_staff = daily_assignable_staffs
+        staff = random.choice(daily_staff[0])
+        if staff.icu_team == True:
+            self.day_staff[Section.d_Ifree].append(staff)
         else:
-            return False
+            self.day_staff[Section.d_Efree].append(staff)
+    '''
+    def section_filled(self)->bool:
+        return all([
+            self.day_staff[Section.d_30594] is not None,
+            self.day_staff[Section.d_30596] is not None,
+            self.day_staff[Section.d_30595] is not None,
+            self.day_staff[Section.d_30599] is not None,
+            self.night_staff[Section.n_30596] is not None,
+            self.night_staff[Section.n_30595] is not None,
+            self.night_staff[Section.n_30599] is not None
+        ])
     '''#土日祝の抽出
     def is_weekday(self)->bool:
         if self.date.weekday() < 5:
@@ -106,6 +143,12 @@ class Daily_sections:
 
 # カレンダーの用意
 calendar = []
+first_date = datetime.date(2024,6,1)
+last_date = datetime.date(2024,6,30)
+current_date = first_date
+while current_date <= last_date:
+    calendar.append(current_date)
+    current_date += datetime.timedelta(days = 1)
 
 class Staff():
     def __init__(self,
@@ -117,7 +160,8 @@ class Staff():
                 can_30595 = False,
                 can_30596 = False,
                 can_30594 = False,
-                ng_request = []
+                icu_team = False,
+                ng_request = None
                 ):
         self.name = name
         self.rank = rank
@@ -127,28 +171,57 @@ class Staff():
         self.can_30595 = can_30595
         self.can_30596 = can_30596
         self.can_30594 = can_30594
+        self.icu_team = icu_team
+        if ng_request is None:
+            ng_request = []
         self.ng_request = ng_request
     
     def working_days(self):
         working_days = 0
         for date in calendar:
-            if daily_sections(date).day_section[lambda x: x in Section] == self:
+            daily_sections = Daily_sections(date)
+            if self in daily_sections.day_staff.values():
                 working_days += 1
-            if daily_sections(date).night_section[lambda x: x in Section] == self:
+            if self in daily_sections.night_staff.values():
                 working_days += 1.5
         return working_days
 
 
 # スタッフ名簿
 staffs = [
-    Staff("mizuno", 10, is_phd = True, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30594 =True, ng_request =[])
+    Staff("dr_01", 10, is_phd = True, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("dr_02", 10, is_phd = True, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("dr_03", 10, is_phd = True, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("dr_04", 10, is_phd = True, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("dr_05", 10, is_phd = True, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("dr_06", 10, is_phd = True, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("dr_07", 10, is_phd = True, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("dr_08", 10, is_phd = True, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("dr_09", 10, is_phd = True, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("dr_10", 10, is_phd = True, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("dr_11", 10, is_phd = True, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("dr_12", 10, is_phd = True, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("dr_13", 10, is_phd = True, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30594 =True, icu_team = True, ng_request =[]),
 ]
 
 
 def main():
     cal_daily_section = []
     for date in calendar:
-        daily_section = Daily_sections(date)
-        daily_section.assign_main_staff()
-        daily_section.assign_sub_staff()
-        cal_daily_section.append(daily_section)
+        daily_sections = Daily_sections(date)
+        daily_assignable_staffs = daily_sections.find_assignable_staff(date, staffs)
+        daily_sections.assign_main_staff(daily_assignable_staffs)
+        #daily_sections.assign_sub_staff(daily_assignable_staffs)
+        cal_daily_section.append({date: daily_sections})
+
+    print("Date, D_30591, D_30595, D_30599, D_30594, D_Efree, D_30596, D_Ifree, N_30595, N_30599, N_30596")
+
+    for entry in cal_daily_section:
+        for date, daily_sections in entry.items():
+            print(f"{date}", end=", ")
+            for section in daily_sections.day_staff:
+                print(f"{daily_sections.day_staff[section].name if daily_sections.day_staff[section] else "None"}", end=", ")
+            for section in daily_sections.night_staff:
+                print(f"{daily_sections.night_staff[section].name if daily_sections.night_staff[section] else "None"}", end=", ")
+            print()
+main()
