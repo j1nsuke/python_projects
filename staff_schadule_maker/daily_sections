@@ -7,6 +7,7 @@ class Section(Enum):
     d_30595 = "Day30595"
     d_30599 = "Day30599"
     d_30596 = "Day30596"
+    d_30597 = "Day30597"
     d_Ifree = "ICUfree"
     d_30594 = 'Day30594'
     d_Efree = "EICUfree"
@@ -22,6 +23,7 @@ class Daily_sections:
                             Section.d_30595: None,
                             Section.d_30599: None,
                             Section.d_30596: None,
+                            Section.d_30597: None,
                             Section.d_Ifree: [],
                             Section.d_30594: None,
                             Section.d_Efree: []
@@ -45,7 +47,6 @@ class Daily_sections:
         daily_assignable_staffs = [day_assignable, night_assignable]
         return daily_assignable_staffs
 
-    # 日夜連続勤務　要検討！
     def assign_main_staff(self, daily_assignable_staffs):
         daily_staff = daily_assignable_staffs
         for i in range(100):
@@ -69,6 +70,12 @@ class Daily_sections:
                             self.night_staff[Section.n_30596] = n_staff
                             daily_staff[1].remove(n_staff)
                             break
+            # 30597の日勤
+            if self.day_staff[Section.d_30597] is None:    
+                d_staff = random.choice(daily_staff[0])
+                if d_staff.can_30597:
+                    self.day_staff[Section.d_30597] = d_staff
+                    daily_staff[0].remove(d_staff)
             # 30595の日勤、夜勤
             if self.day_staff[Section.d_30595] is None:    
                 d_staff = random.choice(daily_staff[0])
@@ -112,7 +119,7 @@ class Daily_sections:
                             daily_staff[1].remove(n_staff)
                             break
     '''
-    # EICU, ICU freeの割り振り方　要検討！
+    # EICU, ICU free
     def assign_sub_staff(self, daily_assignable_staffs):
         daily_staff = daily_assignable_staffs
         staff = random.choice(daily_staff[0])
@@ -125,6 +132,7 @@ class Daily_sections:
         return all([
             self.day_staff[Section.d_30594] is not None,
             self.day_staff[Section.d_30596] is not None,
+            self.day_staff[Section.d_30597] is not None,
             self.day_staff[Section.d_30595] is not None,
             self.day_staff[Section.d_30599] is not None,
             self.night_staff[Section.n_30596] is not None,
@@ -159,6 +167,7 @@ class Staff():
                 can_30599 = False,
                 can_30595 = False,
                 can_30596 = False,
+                can_30597 = False,
                 can_30594 = False,
                 icu_team = False,
                 ng_request = None
@@ -170,6 +179,7 @@ class Staff():
         self.can_30599 = can_30599
         self.can_30595 = can_30595
         self.can_30596 = can_30596
+        self.can_30597 = can_30597
         self.can_30594 = can_30594
         self.icu_team = icu_team
         if ng_request is None:
@@ -189,21 +199,56 @@ class Staff():
 
 # スタッフ名簿
 staffs = [
-    Staff("dr_01", 10, is_phd = True, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30594 =True, icu_team = True, ng_request =[]),
-    Staff("dr_02", 10, is_phd = True, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30594 =True, icu_team = True, ng_request =[]),
-    Staff("dr_03", 10, is_phd = True, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30594 =True, icu_team = True, ng_request =[]),
-    Staff("dr_04", 10, is_phd = True, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30594 =True, icu_team = True, ng_request =[]),
-    Staff("dr_05", 10, is_phd = True, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30594 =True, icu_team = True, ng_request =[]),
-    Staff("dr_06", 10, is_phd = True, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30594 =True, icu_team = True, ng_request =[]),
-    Staff("dr_07", 10, is_phd = True, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30594 =True, icu_team = True, ng_request =[]),
-    Staff("dr_08", 10, is_phd = True, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30594 =True, icu_team = True, ng_request =[]),
-    Staff("dr_09", 10, is_phd = True, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30594 =True, icu_team = True, ng_request =[]),
-    Staff("dr_10", 10, is_phd = True, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30594 =True, icu_team = True, ng_request =[]),
-    Staff("dr_11", 10, is_phd = True, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30594 =True, icu_team = True, ng_request =[]),
-    Staff("dr_12", 10, is_phd = True, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30594 =True, icu_team = True, ng_request =[]),
-    Staff("dr_13", 10, is_phd = True, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("Asada", 16,      can_30591 = True, can_30599 = True, can_30595 = True, can_30596 = True, can_30597 =True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("Yamamoto", 16,   can_30591 = True, can_30599 = True, can_30595 = True, can_30596 = True, can_30597 =True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("Wada", 18,       can_30599 = True, can_30595 = True, can_30594 =True, ng_request =[]),
+    Staff("Horie", 17,      can_30599 = True, can_30595 = True, can_30594 =True, ng_request =[]),
+    Staff("SatoTaku", 12,   is_phd = True, can_30599 = True, can_30595 = True, can_30594 =True, ng_request =[]),
+    Staff("Tagami", 12,     is_phd = True, can_30599 = True, can_30595 = True, can_30594 =True, ng_request =[]),
+    Staff("Takai", 10,      is_phd = True, can_30599 = True, can_30595 = True, can_30596 = True, can_30597 =True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("Mizuno", 10,     is_phd = True, can_30599 = True, can_30595 = True, can_30596 = True, can_30597 =True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("SatoYuko", 8,    can_30599 = True, can_30595 = True, can_30596 = True, can_30597 =True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("Nakano", 6,      can_30599 = True, can_30595 = True, can_30596 = True, can_30597 =True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("Kimura", 6,      can_30599 = True, can_30595 = True, can_30596 = True, can_30597 =True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("Arita", 6,       can_30599 = True, can_30595 = True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("SatoKazu", 5,    can_30599 = True, can_30595 = True, can_30596 = True, can_30597 =True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("Dozono", 5,      can_30599 = True, can_30595 = True, can_30596 = True, can_30597 =True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("Ikegami", 4,     can_30599 = True, ng_request =[]),
+    Staff("Tanimoto", 4,    can_30599 = True, can_30597 = True, icu_team = True, ng_request =[]),
+    Staff("Kawakami", 3,    can_30599 = True, ng_request =[]),
+    Staff("Kawada", 3,      can_30599 = True, ng_request =[]),
+    Staff("Noda", 3,        can_30599 = True, ng_request =[]),
+    Staff("Matsuyama", 3,   can_30599 = True, ng_request =[]),
+    Staff("Sue", 3,         can_30599 = True, icu_team = True, ng_request =[]),
+    Staff("Taki", 10,       can_30599 = True, ng_request =[]),
 ]
 
+'''
+staffs = [
+    Staff("Asada", 16,      is_phd = False, can_30591 = True, can_30599 = True, can_30595 = True, can_30596 = True, can_30597 =True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("Yamamoto", 16,   is_phd = False, can_30591 = True, can_30599 = True, can_30595 = True, can_30596 = True, can_30597 =True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("Wada", 18,       is_phd = False, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = False, can_30597 =False, can_30594 =True, icu_team = False, ng_request =[]),
+    Staff("Horie", 17,      is_phd = False, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = False, can_30597 =False, can_30594 =True, icu_team = False, ng_request =[]),
+    Staff("SatoTaku", 12,   is_phd = True, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = False, can_30597 =False, can_30594 =True, icu_team = False, ng_request =[]),
+    Staff("Tagami", 12,     is_phd = True, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = False, can_30597 =False, can_30594 =True, icu_team = False, ng_request =[]),
+    Staff("Takai", 10,      is_phd = True, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30597 =True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("Mizuno", 10,     is_phd = True, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30597 =True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("SatoYuko", 8,    is_phd = False, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30597 =True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("Nakano", 6,      is_phd = False, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30597 =True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("Kimura", 6,      is_phd = False, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30597 =True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("Arita", 6,       is_phd = False, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30597 =True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("SatoKazu", 5,    is_phd = False, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30597 =True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("Dozono", 5,      is_phd = False, can_30591 = False, can_30599 = True, can_30595 = True, can_30596 = True, can_30597 =True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("Ikegami", 4,     is_phd = False, can_30591 = False, can_30599 = True, can_30595 = False, can_30596 = False, can_30597 =True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("Tanimoto", 4,    is_phd = False, can_30591 = False, can_30599 = True, can_30595 = False, can_30596 = False, can_30597 =True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("Kawakami", 3,    is_phd = False, can_30591 = False, can_30599 = True, can_30595 = False, can_30596 = False, can_30597 =True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("Kawada", 3,      is_phd = False, can_30591 = False, can_30599 = True, can_30595 = False, can_30596 = False, can_30597 =True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("Noda", 3,        is_phd = False, can_30591 = False, can_30599 = True, can_30595 = False, can_30596 = False, can_30597 =True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("Matsuyama", 3,   is_phd = False, can_30591 = False, can_30599 = True, can_30595 = False, can_30596 = False, can_30597 =True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("Sue", 3,         is_phd = False, can_30591 = False, can_30599 = True, can_30595 = False, can_30596 = False, can_30597 =True, can_30594 =True, icu_team = True, ng_request =[]),
+    Staff("Taki", 10,       is_phd = False, can_30591 = False, can_30599 = True, can_30595 = False, can_30596 = False, can_30597 =True, can_30594 =True, icu_team = True, ng_request =[]),
+]
+'''
 
 def main():
     cal_daily_section = []
@@ -214,7 +259,7 @@ def main():
         #daily_sections.assign_sub_staff(daily_assignable_staffs)
         cal_daily_section.append({date: daily_sections})
 
-    print("Date, D_30591, D_30595, D_30599, D_30594, D_Efree, D_30596, D_Ifree, N_30595, N_30599, N_30596")
+    print("Date, D_30591, D_30595, D_30599, D_30594, D_Efree, D_30596, D_30597, D_Ifree, N_30595, N_30599, N_30596")
 
     for entry in cal_daily_section:
         for date, daily_sections in entry.items():
