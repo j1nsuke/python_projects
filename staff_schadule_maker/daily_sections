@@ -44,6 +44,37 @@ class Daily_sections:
                 day_assignable.append(staff)
                 if next_date not in staff.ng_request:
                     night_assignable.append(staff)
+            #定期外勤を除外
+            #月曜日
+            if date.weekday() == 0:
+                if staff.name in ("Tagami", "Wada"):
+                    night_assignable.remove(staff)
+            #火曜日          
+            if date.weekday() == 1:
+                if staff.name in ("Tagami", "Wada"):
+                    day_assignable.remove(staff)
+                    night_assignable.remove(staff)
+                if staff.name in ("Asada"):
+                    night_assignable.remove(staff)
+            #水曜日          
+            if date.weekday() == 3:
+                if staff.name in ("Asada"):
+                    day_assignable.remove(staff)
+                    night_assignable.remove(staff)
+                if staff.name in ("Mizuno"):
+                    night_assignable.remove(staff)
+            #木曜日          
+            if date.weekday() == 4:
+                if staff.name in ("Mizuno"):
+                    day_assignable.remove(staff)
+                    night_assignable.remove(staff)
+                if staff.name in ("Tagami", "SatoTaku"):
+                    night_assignable.remove(staff)
+            #金曜日          
+            if date.weekday() == 5:
+                if staff.name in ("Tagami", "SatoTaku"):
+                    day_assignable.remove(staff)
+                    night_assignable.remove(staff)
         daily_assignable_staffs = [day_assignable, night_assignable]
         return daily_assignable_staffs
 
