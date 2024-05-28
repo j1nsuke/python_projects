@@ -84,8 +84,10 @@ class Daily_sections:
                     night_assignable.remove(staff)
 
         for staff in previous_night_staffs:
-            day_assignable.remove(staff)
-            night_assignable.remove(staff)
+            if staff in day_assignable:
+                day_assignable.remove(staff)
+            if staff in night_assignable:
+                night_assignable.remove(staff)
 
         daily_assignable_staffs = [day_assignable, night_assignable]
         return daily_assignable_staffs
@@ -205,7 +207,7 @@ staffs = [
 def main():
     cal_daily_section = []
     for date in calendar:
-        if date is first_date:
+        if date == first_date:
             previous_night_staffs = []
         daily_sections = Daily_sections(date)
         daily_assignable_staffs = daily_sections.find_assignable_staffs(previous_night_staffs)
@@ -222,11 +224,18 @@ def main():
     print("")
     for entry in cal_daily_section:
         for date, daily_sections in entry.items():
-            print(f"{date}", end="\t")
-            for section in daily_sections.day_staff:
-                print(f"{daily_sections.day_staff[section].name if daily_sections.day_staff[section] else "None"}", end="\t")
-            for section in daily_sections.night_staff:
-                print(f"{daily_sections.night_staff[section].name if daily_sections.night_staff[section] else "None"}", end="\t")
-            print()
+            output = [f"{date.strftime('%m-%d')}"]
+            output.append(f"{daily_sections.day_staff[Section.s30591].name if daily_sections.day_staff[Section.s30591] else 'None'}")
+            output.append(f"{daily_sections.day_staff[Section.s30595].name if daily_sections.day_staff[Section.s30595] else 'None'}")
+            output.append(f"{daily_sections.day_staff[Section.s30599].name if daily_sections.day_staff[Section.s30599] else 'None'}")
+            output.append(f"{daily_sections.day_staff[Section.s30594].name if daily_sections.day_staff[Section.s30594] else 'None'}")
+            output.append(f"{' '.join([staff.name for staff in daily_sections.day_staff[Section.sEfree]]) if daily_sections.day_staff[Section.sEfree] else 'None'}")
+            output.append(f"{daily_sections.day_staff[Section.s30596].name if daily_sections.day_staff[Section.s30596] else 'None'}")
+            output.append(f"{daily_sections.day_staff[Section.s30597].name if daily_sections.day_staff[Section.s30597] else 'None'}")
+            output.append(f"{' '.join([staff.name for staff in daily_sections.day_staff[Section.sIfree]]) if daily_sections.day_staff[Section.sIfree] else 'None'}")
+            output.append(f"{daily_sections.night_staff[Section.s30595].name if daily_sections.night_staff[Section.s30595] else 'None'}")
+            output.append(f"{daily_sections.night_staff[Section.s30599].name if daily_sections.night_staff[Section.s30599] else 'None'}")
+            output.append(f"{daily_sections.night_staff[Section.s30596].name if daily_sections.night_staff[Section.s30596] else 'None'}")
+            print("\t".join(output))
 
 main()
