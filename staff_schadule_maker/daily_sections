@@ -230,7 +230,8 @@ class Schedule_matrix:
                             assign_date = start_date + datetime.timedelta(days=i)
                             temp_schedules.schedule_for(assign_date).assign(Time.day, Section.s30596, staff)
                             if i == 3:
-                                temp_schedules.schedule_for(assign_date).assign(Time.night, Section.s30597, staff)
+                                if self.schedule_for(assign_date).daily_assignment[Time.night][Section.s30596] is None:
+                                    temp_schedules.schedule_for(assign_date).assign(Time.night, Section.s30596, staff)
                         start_date += datetime.timedelta(days=j)
                         block_assigned = True
                         break
@@ -261,7 +262,7 @@ def main():
 
     indexes = ["Date", "D_30591", "D_30595", "D_30599", "D_30594", "D_Efree", "D_30596", "D_30597", "D_Ifree", "N_30595", "N_30599", "N_30596"]
     for index in indexes:
-        print(f"{index}", end="\t")
+        print(f"{index}", end="\t    ")
     print("")
     for entry in schedule_matrix.schedules.values():
         output = [f"{entry.date.strftime('%m-%d')}"]
@@ -276,6 +277,6 @@ def main():
         output.append(f"{entry.daily_assignment[Time.night][Section.s30595].name if entry.daily_assignment[Time.night][Section.s30595] else 'None'}")
         output.append(f"{entry.daily_assignment[Time.night][Section.s30599].name if entry.daily_assignment[Time.night][Section.s30599] else 'None'}")
         output.append(f"{entry.daily_assignment[Time.night][Section.s30596].name if entry.daily_assignment[Time.night][Section.s30596] else 'None'}")
-        print("\t".join(output))
+        print("\t    ".join(output))
 
 main()
