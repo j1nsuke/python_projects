@@ -193,15 +193,20 @@ class Schedule_matrix:
         # 当日勤務者リストを作成
         same_date_day_staffs = []
         same_date_night_staffs = []
+        same_date_extra_staffs = []
         same_date_schedule = self.schedule_for(date)
-        for section in Section:
+        for section in (Section.s30591, Section.s30595, Section.s30599, Section.s30594, Section.sEfree, Section.s30596, Section.s30597, Section.sIfree):
             day_staff = same_date_schedule.daily_assignment[Time.day][section]
-            if staff:
-                same_date_day_staffs.append(staff)
+            if day_staff:
+                same_date_day_staffs.append(day_staff)
         for section in (Section.s30595, Section.s30599, Section.s30596):
-            night_staff = same_date_night_staffs.daily_assignment[Time.night][section]
-            if staff:
-                same_date_night_staffs.append(staff)
+            night_staff = same_date_schedule.daily_assignment[Time.night][section]
+            if night_staff:
+                same_date_night_staffs.append(night_staff)
+        for section in (Section.sonoda, Section.teikyo, Section.mitsui, Section.taitou, Section.oomori, Section.chibat, Section.extras):
+            extra_staff = same_date_schedule.daily_assignment[Time.extra][section]
+            if extra_staff:
+                same_date_extra_staffs.append(extra_staff)
         # 当日勤務者をそれぞれの勤務枠から除外
         for staff in same_date_day_staffs:
             if staff in day_assignable:
@@ -209,6 +214,13 @@ class Schedule_matrix:
         for staff in same_date_night_staffs:
             if staff in night_assignable:
                 night_assignable.remove(staff)
+        if len(same_date_extra_staffs) > 0:
+            for staff in same_date_extra_staffs:
+                if staff in day_assignable:
+                    day_assignable.remove(staff)
+                if staff in night_assignable:
+                    night_assignable.remove(staff)
+        
         daily_assignable_staffs = [day_assignable, night_assignable]
         return daily_assignable_staffs
 
@@ -309,21 +321,14 @@ class Schedule_matrix:
                 complete_flag = True
                 break
             else:
-                staff_list = copy.copy(icu_staffs)
+                staff_list = copy.copy(eicu_staffs)
                 block_assigned = False
                 while len(staff_list) > 0 :
                     staff = random.choice(staff_list)
                     j = 4
                     can_assign = True
 
-                    # 初日前日30597に配置できるか
-                    if start_date != first_date:
-                        previous_date = start_date - datetime.timedelta(days=1)
-                        day_assignable, night_assignable = temp_schedules.daily_assignable_staffs(previous_date)
-                        if staff not in night_assignable:
-                            can_assign = False
-                            break
-                    # 連続4日＋最終日夜勤可能か
+                    # 連続4日可能か
                     for i in range(4):
                         check_date = start_date + datetime.timedelta(days=i)
                         # 最終日からはみ出す例外処理
@@ -331,22 +336,16 @@ class Schedule_matrix:
                             j = i
                             complete_flag = True
                             break
-                        day_assignable, night_assignable = temp_schedules.daily_assignable_staffs(check_date)
-                        if staff not in day_assignable or (i == 3 and staff not in night_assignable):
+                        day_assignable, night_assignable = temp_schedules.daily_assignable_notyet(check_date)
+                        if staff not in day_assignable:
                             can_assign = False
                             break
-                    # 前日30597＋連続4日＋最終日夜勤可能なとき割り当て
+                    # 連続4日可能なとき割り当て
                     if can_assign:
                         print(f"now{_}, startdate{start_date}, staff {staff}")
-                        if start_date != first_date:
-                            previous_date = start_date - datetime.timedelta(days=1)
-                            temp_schedules.schedule_for(previous_date).assign(Time.day, Section.s30597, staff)
                         for i in range(j):
                             assign_date = start_date + datetime.timedelta(days=i)
-                            temp_schedules.schedule_for(assign_date).assign(Time.day, Section.s30596, staff)
-                            if i == 3:
-                                if self.schedule_for(assign_date).daily_assignment[Time.night][Section.s30596] is None:
-                                    temp_schedules.schedule_for(assign_date).assign(Time.night, Section.s30596, staff)
+                            temp_schedules.schedule_for(assign_date).assign(Time.day, Section.s30594, staff)
                         start_date += datetime.timedelta(days=j)
                         block_assigned = True
                         break
@@ -357,8 +356,7 @@ class Schedule_matrix:
                 if complete_flag:
                     break
                 if not block_assigned:
-                    temp_schedules = Schedule_matrix()
-                    temp_schedules.assign_30591()
+                    temp_schedules = deepcopy(self)
         
         if complete_flag:
             self.schedules = temp_schedules.schedules
@@ -375,6 +373,7 @@ def main():
     schedule_matrix = Schedule_matrix()
     schedule_matrix.assign_30591()
     schedule_matrix.assign_30596()
+    schedule_matrix.assign_30594()
 
     indexes = ["Date", "D_30591", "D_30595", "D_30599", "D_30594", "D_Efree", "D_30596", "D_30597", "D_Ifree", "N_30595", "N_30599", "N_30596"]
     for index in indexes:
