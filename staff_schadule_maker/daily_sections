@@ -127,7 +127,10 @@ class Daily_assignments:
             all(self.daily_assignment[Time.night][section] is not None for section in (Section.s30595, Section.s30599, Section.s30596)) and extra_work
     
     def assign(self, time:Time, section:Section, staff:Staff):
-        self.daily_assignment[time][section] = staff
+        if section in (Section.sEfree, Section.sIfree, Section.extras):
+            self.daily_assignment[time][section].append(staff)
+        else:
+            self.daily_assignment[time][section] = staff
         if time == Time.day:
             staff.work_count += 1
         else:
@@ -351,7 +354,15 @@ class Schedule_matrix:
                     j = 4
                     can_assign = True
 
-                    # 連続4日可能か
+                    # 初日前日Efreeに配置できるか
+                    if start_date != first_date:
+                        previous_date = start_date - datetime.timedelta(days=1)
+                        day_assignable, night_assignable = temp_schedules.daily_assignable_staffs(previous_date)
+                        if staff not in night_assignable:
+                            can_assign = False
+                            break
+
+                    # 連続4日可能＋最終日夜勤可能か
                     for i in range(4):
                         check_date = start_date + datetime.timedelta(days=i)
                         # 最終日からはみ出す例外処理
@@ -360,14 +371,22 @@ class Schedule_matrix:
                             complete_flag = True
                             break
                         day_assignable, night_assignable = temp_schedules.daily_assignable_notyet(check_date)
-                        if staff not in day_assignable:
+                        if staff not in day_assignable or (i == 3 and staff not in night_assignable):
                             can_assign = False
                             break
-                    # 連続4日可能なとき割り当て
+                    # 連続4日可能なとき割り当て、最終日は5年目以降なら30595
                     if can_assign:
+                        if start_date != first_date:
+                            previous_date = start_date - datetime.timedelta(days=1)
+                            temp_schedules.schedule_for(previous_date).assign(Time.day, Section.sEfree, staff)
                         for i in range(j):
                             assign_date = start_date + datetime.timedelta(days=i)
                             temp_schedules.schedule_for(assign_date).assign(Time.day, Section.s30594, staff)
+                            if i == 3:
+                                if staff.rank >= 5:
+                                    temp_schedules.schedule_for(assign_date).assign(Time.night, Section.s30595, staff)
+                                else:
+                                    temp_schedules.schedule_for(assign_date).assign(Time.night, Section.s30599, staff)
                         start_date += datetime.timedelta(days=j)
                         block_assigned = True
                         break
