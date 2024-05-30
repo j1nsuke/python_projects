@@ -333,6 +333,12 @@ class Schedule_matrix:
         # 30594, Efreeを連続で割り当て
     # 30594を連続で割り当て
     def assign_30594(self):
+        # カウントを退避しとく
+        icu_staffs = [get_staff(name) for name in ("SatoKazu", "Nakano", "Dozono", "Kimura")]
+        icu_work_count = []
+        for staff in icu_staffs:
+            icu_work_count.append({staff.name: staff.work_count})
+        
         # 30594可能なメンバーは有田、佐藤一、中野、堂園、木村、池上
         eicu_staffs = [get_staff(name) for name in ("Arita", "SatoKazu", "Nakano", "Dozono", "Kimura", "Ikegami")]
         start_date = first_date
@@ -398,13 +404,16 @@ class Schedule_matrix:
                     break
                 if not block_assigned:
                     temp_schedules = deepcopy(self)
+                    for staff in eicu_staffs:
+                        if staff in icu_staffs:
+                            staff.work_count = icu_work_count[staff.name].value()
+                        else:
+                            staff.work_count = 0
+                        
         
         if complete_flag:
             self.schedules = temp_schedules.schedules
-    
-    
 
-    # 30594を連続で割り当て
     # 夜勤を割り当て
     # 院生から夜勤を割り当て
     # 外勤を割り当て
@@ -435,6 +444,6 @@ def main():
         output.append(f"{entry.daily_assignment[Time.night][Section.s30596].name if entry.daily_assignment[Time.night][Section.s30596] else 'None'}")
         print("\t    ".join(output))
     for staff in staffs:
-        print(f"{staff.name}: works* {staff.work_count}")
+        print(f"{staff.name} works* {staff.work_count}")
 
 main()
