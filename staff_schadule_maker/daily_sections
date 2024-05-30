@@ -3,6 +3,7 @@ import datetime
 import copy
 from copy import deepcopy
 from enum import Enum
+from operator import attrgetter
 
 class Time(Enum):
     day = "Day"
@@ -43,21 +44,35 @@ class Staff():
         if ng_request is None:
             ng_request = []
         self.ng_request = ng_request
+        self.work_count = 0
     
 # スタッフ名簿
 staffs = [
     Staff("Asada", rank=16,   assignable_section = [Section.s30591, Section.s30595, Section.s30596], icu_team = True, ng_request =[]),
     Staff("Yamamoto", rank=16,   assignable_section = [Section.s30591, Section.s30595, Section.s30596], icu_team = True, ng_request =[]),
-
+    Staff("Wada", rank=18,   assignable_section = [Section.s30595, Section.s30599, Section.s30594, Section.sEfree], ng_request =[]),
+    Staff("Horie", rank=17,   assignable_section = [Section.s30595, Section.s30599, Section.s30594, Section.sEfree], ng_request =[]),
+    Staff("SatoTaku", rank=12,   is_phd = True, assignable_section = [Section.s30595, Section.s30599, Section.s30594, Section.sEfree], ng_request =[]),
+    Staff("Tagami", rank=12,   is_phd = True, assignable_section = [Section.s30595, Section.s30599, Section.s30594, Section.sEfree], ng_request =[]),
+    Staff("Takai", rank=10,   is_phd = True, assignable_section = [Section.s30595, Section.s30599, Section.s30596, Section.s30597, Section.sIfree, Section.sEfree], icu_team = True, ng_request =[]),
+    Staff("Mizuno", rank=10,   is_phd = True, assignable_section = [Section.s30595, Section.s30599, Section.s30594, Section.s30596, Section.s30597, Section.sIfree, Section.sEfree], ng_request =[]),
     Staff("SatoYuko", rank= 8,    assignable_section = [Section.s30595, Section.s30599, Section.s30596, Section.s30597, Section.sIfree], icu_team = True, ng_request =[]),
     Staff("Nakano", rank= 6,    assignable_section = [Section.s30595, Section.s30599, Section.s30596, Section.s30597, Section.sIfree], icu_team = True, ng_request =[]),
     Staff("Kimura", rank= 6,    assignable_section = [Section.s30595, Section.s30599, Section.s30596, Section.s30597, Section.sIfree], icu_team = True, ng_request =[]),
     Staff("Arita", rank= 6,    assignable_section = [Section.s30595, Section.s30599, Section.s30594, Section.sEfree], ng_request =[]),
     Staff("SatoKazu", rank= 5,    assignable_section = [Section.s30595, Section.s30599, Section.s30596, Section.s30597, Section.sIfree], icu_team = True, ng_request =[]),
     Staff("Dozono", rank= 5,    assignable_section = [Section.s30595, Section.s30599, Section.s30594, Section.sEfree, Section.s30596, Section.s30597, Section.sIfree], icu_team = True, ng_request =[]),
-   
+    Staff("Ikegami", rank= 4,    assignable_section = [Section.s30599, Section.sEfree], ng_request =[]),
+    Staff("Tanimoto", rank= 4,    assignable_section = [Section.s30599, Section.sEfree, Section.s30597, Section.sIfree], icu_team = True, ng_request =[]),
+    Staff("Kawakami", rank= 3,    assignable_section = [Section.s30599, Section.sEfree], ng_request =[]),
+    Staff("Kawada", rank= 3,    assignable_section = [Section.s30599, Section.sEfree], ng_request =[]),
+    Staff("Noda", rank= 3,    assignable_section = [Section.s30599, Section.sEfree], ng_request =[]),
+    Staff("Matuyama", rank= 3,    assignable_section = [Section.s30599, Section.sEfree], ng_request =[]),
+    Staff("Sue", rank= 3,    assignable_section = [Section.s30599, Section.sEfree], ng_request =[]),
+    Staff("Taki", rank= 7,    assignable_section = [Section.s30599, Section.sEfree], ng_request =[]),
+    Staff("Kobayasi", rank= 3,    assignable_section = [Section.s30599, Section.sEfree], ng_request =[]),
+    Staff("Ikeda", rank= 5,    assignable_section = [Section.s30599, Section.sEfree], ng_request =[]),
 ]
-
 def get_staff(name):
     return next((staff for staff in staffs if staff.name == name), None)
 
@@ -113,6 +128,10 @@ class Daily_assignments:
     
     def assign(self, time:Time, section:Section, staff:Staff):
         self.daily_assignment[time][section] = staff
+        if time == Time.day:
+            staff.work_count += 1
+        else:
+            staff.work_count += 1.5
 
 class Schedule_matrix:
     def __init__(self) -> None:
@@ -161,7 +180,6 @@ class Schedule_matrix:
 
         daily_assignable_staffs = [day_assignable, night_assignable]
         return daily_assignable_staffs
-    
 
     def daily_assignable_notyet(self, date):
         daily_assignable_staffs = []
@@ -239,7 +257,6 @@ class Schedule_matrix:
             if date.weekday() < 5:
                 if self.schedule_for(date).daily_assignment[Time.day][Section.s30591] is None:
                     self.schedule_for(date).assign(Time.day, Section.s30591, staff)
-
     # 30596, 30597を連続で割り当て
     def assign_30596(self):
         # 30596可能なメンバーは佐藤悠、佐藤一、中野、堂園、木村
@@ -256,7 +273,10 @@ class Schedule_matrix:
                 staff_list = copy.copy(icu_staffs)
                 block_assigned = False
                 while len(staff_list) > 0 :
-                    staff = random.choice(staff_list)
+                    #少ない順に3人選んでそこからrandom。min()だと順番固定しちゃうから…
+                    staff_list.sort(key=attrgetter('work_count'))
+                    temp_list = staff_list[:2]
+                    staff = random.choice(temp_list)
                     j = 4
                     can_assign = True
 
@@ -281,7 +301,6 @@ class Schedule_matrix:
                             break
                     # 前日30597＋連続4日＋最終日夜勤可能なとき割り当て
                     if can_assign:
-                        print(f"now{_}, startdate{start_date}, staff {staff}")
                         if start_date != first_date:
                             previous_date = start_date - datetime.timedelta(days=1)
                             temp_schedules.schedule_for(previous_date).assign(Time.day, Section.s30597, staff)
@@ -300,15 +319,16 @@ class Schedule_matrix:
                 
                 if complete_flag:
                     break
-                if not block_assigned:
+                if not block_assigned: # assign可能なstaffsが尽きる→初期化して初日からやりなおし
                     temp_schedules = deepcopy(self)
+                    for staff in icu_staffs:
+                        staff.work_count = 0
         
         if complete_flag:
             self.schedules = temp_schedules.schedules
     
         # 30594, Efreeを連続で割り当て
-
-
+    # 30594を連続で割り当て
     def assign_30594(self):
         # 30594可能なメンバーは有田、佐藤一、中野、堂園、木村、池上
         eicu_staffs = [get_staff(name) for name in ("Arita", "SatoKazu", "Nakano", "Dozono", "Kimura", "Ikegami")]
@@ -324,7 +344,10 @@ class Schedule_matrix:
                 staff_list = copy.copy(eicu_staffs)
                 block_assigned = False
                 while len(staff_list) > 0 :
-                    staff = random.choice(staff_list)
+                    #少ない順に3人選んでそこからrandom。min()だと順番固定しちゃうから…
+                    staff_list.sort(key=attrgetter('work_count'))
+                    temp_list = staff_list[:2]
+                    staff = random.choice(temp_list)
                     j = 4
                     can_assign = True
 
@@ -342,7 +365,6 @@ class Schedule_matrix:
                             break
                     # 連続4日可能なとき割り当て
                     if can_assign:
-                        print(f"now{_}, startdate{start_date}, staff {staff}")
                         for i in range(j):
                             assign_date = start_date + datetime.timedelta(days=i)
                             temp_schedules.schedule_for(assign_date).assign(Time.day, Section.s30594, staff)
@@ -393,5 +415,7 @@ def main():
         output.append(f"{entry.daily_assignment[Time.night][Section.s30599].name if entry.daily_assignment[Time.night][Section.s30599] else 'None'}")
         output.append(f"{entry.daily_assignment[Time.night][Section.s30596].name if entry.daily_assignment[Time.night][Section.s30596] else 'None'}")
         print("\t    ".join(output))
+    for staff in staffs:
+        print(f"{staff.name}: works* {staff.work_count}")
 
 main()
