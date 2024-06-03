@@ -106,6 +106,16 @@ class Daily_assignments:
             }
         }
 
+    def assign(self, time:Time, section:Section, staff:Staff):
+        if section in (Section.sEfree, Section.sIfree, Section.extras):
+            self.daily_assignment[time][section].append(staff)
+        else:
+            self.daily_assignment[time][section] = staff
+        if time == Time.day:
+            staff.work_count += 1
+        else:
+            staff.work_count += 1.5
+    '''
     def all_sections_assigned(self, date:datetime.date) -> bool:
         extra_work = True
         if date.weekday() == 0 and not all(self.daily_assignment[Time.extra][section] is not None for section in (Section.teikyo, Section.oomori, Section.chibat)):
@@ -125,16 +135,7 @@ class Daily_assignments:
 
         return all(self.daily_assignment[Time.day][section] is not None for section in (Section.s30595, Section.s30599, Section.s30594, Section.s30596)) and\
             all(self.daily_assignment[Time.night][section] is not None for section in (Section.s30595, Section.s30599, Section.s30596)) and extra_work
-    
-    def assign(self, time:Time, section:Section, staff:Staff):
-        if section in (Section.sEfree, Section.sIfree, Section.extras):
-            self.daily_assignment[time][section].append(staff)
-        else:
-            self.daily_assignment[time][section] = staff
-        if time == Time.day:
-            staff.work_count += 1
-        else:
-            staff.work_count += 1.5
+    '''
 
 class Schedule_matrix:
     def __init__(self) -> None:
@@ -176,9 +177,18 @@ class Schedule_matrix:
         same_date_night_staffs = [same_date_schedule.daily_assignment[Time.night][section] for section in (Section.s30595, Section.s30599, Section.s30596) if same_date_schedule.daily_assignment[Time.night][section]]
         same_date_extra_staffs = [same_date_schedule.daily_assignment[Time.extra][section] for section in (Section.sonoda, Section.teikyo, Section.mitsui, Section.taitou, Section.oomori, Section.chibat, Section.extras) if same_date_schedule.daily_assignment[Time.extra][section]]
 
+        # 連続夜勤禁止のために翌日勤務者リストを作成
+        next_date_all_staffs = []
+        if next_date <= last_date:
+            next_date_schedule = self.schedule_for(next_date)
+            next_date_day_staffs = [next_date_schedule.daily_assignment[Time.day][section] for section in (Section.s30591, Section.s30595, Section.s30599, Section.s30594, Section.sEfree, Section.s30596, Section.s30597, Section.sIfree) if next_date_schedule.daily_assignment[Time.day][section]]
+            next_date_night_staffs = [next_date_schedule.daily_assignment[Time.night][section] for section in (Section.s30595, Section.s30599, Section.s30596) if next_date_schedule.daily_assignment[Time.night][section]]
+            next_date_extra_staffs = [next_date_schedule.daily_assignment[Time.extra][section] for section in (Section.sonoda, Section.teikyo, Section.mitsui, Section.taitou, Section.oomori, Section.chibat, Section.extras) if next_date_schedule.daily_assignment[Time.extra][section]]
+            next_date_all_staffs = next_date_day_staffs + next_date_night_staffs + next_date_extra_staffs
+
         # 当日勤務者をそれぞれの勤務枠から除外
         day_assignable = [staff for staff in day_assignable if staff not in same_date_day_staffs + same_date_extra_staffs]
-        night_assignable = [staff for staff in night_assignable if staff not in same_date_night_staffs + same_date_extra_staffs]
+        night_assignable = [staff for staff in night_assignable if staff not in same_date_night_staffs + same_date_extra_staffs + next_date_all_staffs]
 
         return [day_assignable, night_assignable]
 
@@ -381,7 +391,6 @@ class Schedule_matrix:
                     continue
             self.schedules = temp_data.schedules
             break
-
     # ER596-599を割り当て
     def assign_day_ER(self):
         temp_work_count = {staff.name: staff.work_count for staff in staffs}
