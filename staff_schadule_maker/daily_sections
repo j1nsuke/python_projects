@@ -45,11 +45,11 @@ class Staff():
             ng_request = []
         self.ng_request = ng_request
         self.work_count = 0
-    
+
 # スタッフ名簿
 staffs = [
     Staff("Asada", rank=16,   assignable_section = [Section.s30591, Section.s30595, Section.s30596], icu_team = True, ng_request =[]),
-    Staff("Yamamoto", rank=16,   assignable_section = [Section.s30591, Section.s30595, Section.s30596], icu_team = True, ng_request =[]),
+    Staff("Yamamoto", rank=16,   assignable_section = [Section.s30591], icu_team = True, ng_request =[]),
     Staff("Wada", rank=18,   assignable_section = [Section.s30595, Section.s30599, Section.s30594, Section.sEfree], ng_request =[]),
     Staff("Horie", rank=17,   assignable_section = [Section.s30595, Section.s30599, Section.s30594, Section.sEfree], ng_request =[]),
     Staff("SatoTaku", rank=12,   is_phd = True, assignable_section = [Section.s30595, Section.s30599, Section.s30594, Section.sEfree], ng_request =[]),
@@ -194,8 +194,10 @@ class Schedule_matrix:
         night_assignable = []
         next_date = date + datetime.timedelta(days = 1)
 
-        # 勤務不可日とその前日夜勤を除外して勤務可能者リストを作成
+        # 勤務不可日とその前日夜勤を除外して勤務可能者リストを作成、院生を除外
         for staff in staffs:
+            if staff.is_phd:
+                continue
             if date not in staff.ng_request:
                 day_assignable.append(staff)
                 if next_date not in staff.ng_request:
