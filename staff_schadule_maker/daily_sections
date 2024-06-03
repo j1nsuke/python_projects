@@ -202,29 +202,27 @@ class Schedule_matrix:
                 if temp_schedules.schedule_for(date).daily_assignment[Time.day][section] is not None:
                     temp_staff = temp_schedules.schedule_for(date).daily_assignment[Time.day][section]
                     if section in (Section.sEfree, Section.sIfree):
-                        for staff in temp_staff:
-                            real_staff = get_staff_by_name(staff.name)
-                            self.schedule_for(date).assign(Time.day, section, real_staff)
+                        real_staff = [get_staff_by_name(staff.name) for staff in temp_staff]
+                        self.schedule_for(date).daily_assignment[Time.day][section] = real_staff
                     else:
                         real_staff = get_staff_by_name(temp_staff.name)
-                        self.schedule_for(date).assign(Time.day, section, real_staff)
+                        self.schedule_for(date).daily_assignment[Time.day][section] = real_staff
             # Time.night
             for section in night_sections:
                 if temp_schedules.schedule_for(date).daily_assignment[Time.night][section] is not None:
                     temp_staff = temp_schedules.schedule_for(date).daily_assignment[Time.night][section]
                     real_staff = get_staff_by_name(temp_staff.name)
-                    self.schedule_for(date).assign(Time.night, section, real_staff)
+                    self.schedule_for(date).daily_assignment[Time.night][section] = real_staff
             # Time.extra
             for section in extra_sections:
                 if temp_schedules.schedule_for(date).daily_assignment[Time.extra][section] is not None:
                     temp_staff = temp_schedules.schedule_for(date).daily_assignment[Time.extra][section]
                     if section == Section.extras:
-                        for staff in temp_staff:
-                            real_staff = get_staff_by_name(staff.name)
-                            self.schedule_for(date).assign(Time.day, section, real_staff)
+                        real_staff = [get_staff_by_name(staff.name) for staff in temp_staff]
+                        self.schedule_for(date).daily_assignment[Time.extra][section] = real_staff
                     else:
                         real_staff = get_staff_by_name(temp_staff.name)
-                        self.schedule_for(date).assign(Time.day, section, real_staff)
+                        self.schedule_for(date).daily_assignment[Time.extra][section] = real_staff
 
     # 30591を割り当て
     def assign_30591(self):
@@ -529,7 +527,7 @@ def main():
         output.append(f"{entry.daily_assignment[Time.night][Section.s30596].name if entry.daily_assignment[Time.night][Section.s30596] else 'None'}")
         print("\t    ".join(output))
     for staff in staffs:
-        print(f"{staff.name} works* {staff.work_count}")
+        print(f"{staff.name} works* {staff.work_count}", end="")
 
         actual_workcount = 0
         for date in schedule_matrix.calendar:
