@@ -176,15 +176,27 @@ class Schedule_matrix:
 
         # 当日勤務者リストを作成
         same_date_schedule = self.schedule_for(date)
-        same_date_day_staffs = [same_date_schedule.daily_assignment[Time.day][section] for section in day_sections if same_date_schedule.daily_assignment[Time.day][section]]
-        same_date_night_staffs = [same_date_schedule.daily_assignment[Time.night][section] for section in night_sections if same_date_schedule.daily_assignment[Time.night][section]]
-        same_date_extra_staffs = [same_date_schedule.daily_assignment[Time.extra][section] for section in extra_sections if same_date_schedule.daily_assignment[Time.extra][section]]
+        same_date_day_staffs = []
+        for section in day_sections:
+            if same_date_schedule.daily_assignment[Time.day][section] is not None:
+                if section in (Section.sEfree, Section.sIfree):
+                    same_date_day_staffs += same_date_schedule.daily_assignment[Time.day][section]
+                else:
+                    same_date_day_staffs.append(same_date_schedule.daily_assignment[Time.day][section])
+        same_date_night_staffs = [same_date_schedule.daily_assignment[Time.night][section] for section in night_sections if same_date_schedule.daily_assignment[Time.night][section] is not None]
+        same_date_extra_staffs = [same_date_schedule.daily_assignment[Time.extra][section] for section in extra_sections if same_date_schedule.daily_assignment[Time.extra][section] is not None]
 
         # 連続夜勤禁止のために翌日勤務者リストを作成
         next_date_all_staffs = []
         if next_date <= last_date:
             next_date_schedule = self.schedule_for(next_date)
-            next_date_day_staffs = [next_date_schedule.daily_assignment[Time.day][section] for section in day_sections if next_date_schedule.daily_assignment[Time.day][section]]
+            next_date_day_staffs = []
+            for section in day_sections:
+                if next_date_schedule.daily_assignment[Time.day][section] is not None:
+                    if section in (Section.sEfree, Section.sIfree):
+                        next_date_day_staffs += next_date_schedule.daily_assignment[Time.day][section]
+                    else:
+                        next_date_day_staffs.append(next_date_schedule.daily_assignment[Time.day][section])
             next_date_night_staffs = [next_date_schedule.daily_assignment[Time.night][section] for section in night_sections if next_date_schedule.daily_assignment[Time.night][section]]
             next_date_extra_staffs = [next_date_schedule.daily_assignment[Time.extra][section] for section in extra_sections if next_date_schedule.daily_assignment[Time.extra][section]]
             next_date_all_staffs = next_date_day_staffs + next_date_night_staffs + next_date_extra_staffs
@@ -194,7 +206,6 @@ class Schedule_matrix:
         night_assignable = [staff for staff in night_assignable if staff not in same_date_night_staffs + same_date_extra_staffs + next_date_all_staffs]
 
         return [day_assignable, night_assignable]
-
     def replace_schedules(self, temp_schedules):
         for date in self.calendar:
             # Time.day
@@ -332,7 +343,6 @@ class Schedule_matrix:
                     staff = random.choice(temp_list)
                     j = 4
                     can_assign = True
-
                     # 初日前日Efreeに配置できるか
                     if start_date != first_date:
                         previous_date = start_date - datetime.timedelta(days=1)
@@ -340,7 +350,6 @@ class Schedule_matrix:
                         if staff not in night_assignable:
                             can_assign = False
                             break
-
                     # 連続4日可能＋最終日夜勤可能か
                     for i in range(4):
                         check_date = start_date + datetime.timedelta(days=i)
@@ -353,6 +362,7 @@ class Schedule_matrix:
                         if staff not in day_assignable or (i == 3 and staff not in night_assignable):
                             can_assign = False
                             break
+                    
                     # 連続4日可能なとき割り当て、最終日は5年目以降なら30595
                     if can_assign:
                         if start_date != first_date:
@@ -384,7 +394,6 @@ class Schedule_matrix:
                             staff.work_count = 0
         if complete_flag:
             self.replace_schedules(temp_schedules)
-
     # 夜勤を596-595-599の順に割り当て　※assignable_notyetで院生を除外した
     def assign_nightshifts(self):
         temp_work_count = {staff.name: staff.work_count for staff in staffs}
@@ -417,7 +426,7 @@ class Schedule_matrix:
                     continue
             self.replace_schedules(temp_schedules)
             break
-
+    # 院生+浅田夜勤を追加
     def swap_nightshifts(self):
         # 高井、水野が30596、佐藤拓、田上が30595、と浅田
         help_staffs = [get_staff_by_name(name) for name in ("Asada", "Tagami", "SatoTaku", "Takai", "Mizuno")]
