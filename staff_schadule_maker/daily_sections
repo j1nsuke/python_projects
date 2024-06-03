@@ -339,9 +339,9 @@ class Schedule_matrix:
     def assign_30594(self):
         # カウントを退避しとく
         icu_staffs = [get_staff_by_name(name) for name in ("SatoKazu", "Nakano", "Dozono", "Kimura")]
-        icu_work_count = []
+        icu_work_count = {}
         for staff in icu_staffs:
-            icu_work_count.append({staff.name: staff.work_count})
+            icu_work_count[staff.name] = staff.work_count
         
         # 30594可能なメンバーは有田、佐藤一、中野、堂園、木村、池上
         eicu_staffs = [get_staff_by_name(name) for name in ("Arita", "SatoKazu", "Nakano", "Dozono", "Kimura", "Ikegami")]
@@ -410,7 +410,7 @@ class Schedule_matrix:
                     temp_schedules = deepcopy(self)
                     for staff in eicu_staffs:
                         if staff in icu_staffs:
-                            staff.work_count = icu_work_count[staff.name].value()
+                            staff.work_count = icu_work_count[staff.name]
                         else:
                             staff.work_count = 0
                         
@@ -423,14 +423,18 @@ class Schedule_matrix:
         n30595_staffs = get_staff_by_section(Section.s30595)
         n30599_staffs = get_staff_by_section(Section.s30599)
         # work_countを一旦保存しておく
-        temp_work_count = []
+        temp_work_count = {}
         for staff in staffs:
-            temp_work_count.append({staff.name: staff.work_count})
+            temp_work_count[staff.name] = staff.work_count
 
         for _ in range(100):
             print(f"now assigning nightshifts... trial{_+1}")
+            # スケジュール表、管理フラグ、work_countの初期化
             temp_data = deepcopy(self)
             incomplete_flag = False
+            for staff in staffs:
+                staff.work_count = temp_work_count[staff.name]
+
             for date in self.calendar:
                 daily_n30596_staffs = [staff for staff in n30596_staffs if staff in temp_data.daily_assignable_notyet(date)[1]]
                 if len(daily_n30596_staffs) > 0:
