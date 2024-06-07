@@ -79,6 +79,12 @@ def get_staff_by_name(name):
 def get_staff_by_section(section):
     return [staff for staff in staffs if section in staff.assignable_section]
 
+# 部署ごとスタッフリスト
+stafflists_30596 = [get_staff_by_name(name) for name in ("SatoYuko", "Nakano", "Kimura", "Dozono")]
+stafflists_30594 = [get_staff_by_name(name) for name in ("Horie", "Wada", "Arita", "SatoKazu", "Ikegami")]
+stafflists_30595 = [get_staff_by_name(name) for name in ("Wada", "Horie")]
+stafflists_30599 = [get_staff_by_name(name) for name in ("Ikegami", "Kawakami", "Kawada", "Noda", "Matuyama", "Sue_")]
+
 class Daily_assignments:
     def __init__(self, date:datetime.date) -> None:
         self.date = date
@@ -264,9 +270,13 @@ class Schedule_matrix:
                 staff_list = copy.copy(icu_staffs)
                 block_assigned = False
                 while len(staff_list) > 0 :
-                    #少ない順に3人選んでそこからrandom。min()だと順番固定しちゃうから…
                     staff_list.sort(key=attrgetter('work_count'))
-                    temp_list = staff_list[:2]
+                    temp_list = staff_list[:1] 
+                    for i in range(1, len(staff_list)):
+                        if staff_list[0].work_count == staff_list[i].work_count:
+                            temp_list.append(staff_list[i])
+                        else:
+                            break
                     staff = random.choice(temp_list)
                     j = 4
                     can_assign = True
@@ -318,7 +328,6 @@ class Schedule_matrix:
         if complete_flag:
             self.schedules = temp_schedules.schedules
     
-        # 30594, Efreeを連続で割り当て
     # 30594を連続で割り当て
     def assign_30594(self):
         # カウントを退避しとく
@@ -339,7 +348,12 @@ class Schedule_matrix:
                 while len(staff_list) > 0 :
                     #少ない順に3人選んでそこからrandom。min()だと順番固定しちゃうから…
                     staff_list.sort(key=attrgetter('work_count'))
-                    temp_list = staff_list[:2]
+                    temp_list = staff_list[:1] 
+                    for i in range(1, len(staff_list)):
+                        if staff_list[0].work_count == staff_list[i].work_count:
+                            temp_list.append(staff_list[i])
+                        else:
+                            break
                     staff = random.choice(temp_list)
                     j = 4
                     can_assign = True
@@ -415,8 +429,13 @@ class Schedule_matrix:
                     if len(daily_staffs) > 0:
                         # print(f"{date}: assignable {len(daily_staffs)} for {section}")
                         daily_staffs.sort(key=attrgetter('work_count'))
-                        daily_staffs = daily_staffs[:3]
-                        staff = random.choice(daily_staffs)
+                        temp_list = daily_staffs[:1] 
+                        for i in range(1, len(daily_staffs)):
+                            if daily_staffs[0].work_count == daily_staffs[i].work_count:
+                                temp_list.append(daily_staffs[i])
+                            else:
+                                break
+                        staff = random.choice(temp_list)
                         temp_schedules.schedule_for(date).assign(Time.night, section, staff)
                     else:
                         incomplete_flag = True
@@ -470,8 +489,13 @@ class Schedule_matrix:
                     daily_staffs = [staff for staff in section_staffs if staff in temp_schedules.daily_assignable_staffs(date)[0]]
                     if len(daily_staffs) > 0:
                         daily_staffs.sort(key=attrgetter('work_count'))
-                        daily_staffs = daily_staffs[:3]
-                        staff = random.choice(daily_staffs)
+                        temp_list = daily_staffs[:1] 
+                        for i in range(1, len(daily_staffs)):
+                            if daily_staffs[0].work_count == daily_staffs[i].work_count:
+                                temp_list.append(daily_staffs[i])
+                            else:
+                                break
+                        staff = random.choice(temp_list)
                         temp_schedules.schedule_for(date).assign(Time.day, section, staff)
                     else:
                         incomplete_flag = True
@@ -501,8 +525,13 @@ class Schedule_matrix:
                     daily_staffs = [staff for staff in section_staffs if staff in temp_data.daily_assignable_staffs(date)[0] and staff.work_count < 22]
                     if len(daily_staffs) > 0:
                         daily_staffs.sort(key=attrgetter('work_count'))
-                        daily_staffs = daily_staffs[:2]
-                        staff = random.choice(daily_staffs)
+                        temp_list = daily_staffs[:1] 
+                        for i in range(1, len(daily_staffs)):
+                            if daily_staffs[0].work_count == daily_staffs[i].work_count:
+                                temp_list.append(daily_staffs[i])
+                            else:
+                                break
+                        staff = random.choice(temp_list)
                         temp_data.schedule_for(date).assign(Time.day, section, staff)
             self.replace_schedules(temp_data)
             break
