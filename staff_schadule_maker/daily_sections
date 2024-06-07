@@ -8,7 +8,6 @@ class Time(Enum):
     day = "Day"
     night = "Night"
     extra = "Extra"
-
 class Section(Enum):
     s30591 = "30591"
     s30595 = "30595"
@@ -26,48 +25,50 @@ class Section(Enum):
     taitou = "Taitou"
     chibat = "Chibatoku"
     extras = "Kojin_extras"
-
 day_sections = (Section.s30591, Section.s30595, Section.s30599, Section.s30594, Section.sEfree, Section.s30596, Section.s30597, Section.sIfree)
 night_sections = (Section.s30595, Section.s30599, Section.s30596)
 extra_sections =  (Section.sonoda, Section.teikyo, Section.mitsui, Section.taitou, Section.oomori, Section.chibat, Section.extras)
+icu_set = [Section.s30596, Section.s30597, Section.sIfree]
+eicu_set = [Section.s30594, Section.sEfree]
+
 
 # カレンダーの用意
 first_date = datetime.date(2024,7,1)
 last_date = datetime.date(2024,7,31)
 
 class Staff():
-    def __init__(self, name, rank, is_phd = False, assignable_section = None, icu_team = False, ng_request = None):
+    def __init__(self, name, rank, is_phd = False, assignable_section = None,  ng_request = None):
         self.name = name
         self.rank = rank
-        self.is_phd = is_phd
         self.assignable_section = assignable_section if assignable_section is not None else []
-        self.icu_team = icu_team
         self.ng_request = ng_request if ng_request is not None else []
+        self.is_phd = is_phd
         self.work_count = 0
+        self.extra_work_count = 0
 
 # スタッフ名簿
 staffs = [
-    Staff("Asada", rank=16,   assignable_section = [Section.s30591], icu_team = True, ng_request =[]),
-    Staff("Yamamoto", rank=16,   assignable_section = [Section.s30591], icu_team = True, ng_request =[]),
-    Staff("Wada", rank=18,   assignable_section = [Section.s30595, Section.s30599, Section.s30594, Section.sEfree], ng_request =[]),
-    Staff("Horie", rank=17,   assignable_section = [Section.s30595, Section.s30599, Section.s30594, Section.sEfree], ng_request =[]),
-    Staff("SatoTaku", rank=12,   is_phd = True, assignable_section = [Section.s30595, Section.s30599, Section.s30594, Section.sEfree], ng_request =[]),
-    Staff("Tagami", rank=12,   is_phd = True, assignable_section = [Section.s30595, Section.s30599, Section.s30594, Section.sEfree], ng_request =[]),
-    Staff("Takai", rank=10,   is_phd = True, assignable_section = [Section.s30595, Section.s30599, Section.s30596, Section.s30597, Section.sIfree, Section.sEfree], icu_team = True, ng_request =[]),
-    Staff("Mizuno", rank=10,   is_phd = True, assignable_section = [Section.s30595, Section.s30599, Section.s30594, Section.s30596, Section.s30597, Section.sIfree, Section.sEfree], ng_request =[]),
-    Staff("SatoYuko", rank= 8,    assignable_section = [Section.s30595, Section.s30599, Section.s30596, Section.s30597, Section.sIfree], icu_team = True, ng_request =[]),
-    Staff("Nakano", rank= 6,    assignable_section = [Section.s30595, Section.s30599, Section.s30594, Section.sEfree], icu_team = True, ng_request =[]),
-    Staff("Kimura", rank= 6,    assignable_section = [Section.s30595, Section.s30599, Section.s30596, Section.s30597, Section.sIfree], icu_team = True, ng_request =[]),
-    Staff("Arita", rank= 6,    assignable_section = [Section.s30595, Section.s30599, Section.s30594, Section.sEfree], ng_request =[]),
-    Staff("SatoKazu", rank= 5,    assignable_section = [Section.s30595, Section.s30599, Section.s30596, Section.s30597, Section.sIfree], icu_team = True, ng_request =[]),
-    Staff("Dozono", rank= 5,    assignable_section = [Section.s30595, Section.s30599, Section.s30596, Section.s30597, Section.sIfree], icu_team = True, ng_request =[]),
-    Staff("Ikegami", rank= 4,    assignable_section = [Section.s30599, Section.s30594, Section.sEfree], ng_request =[]),
-    Staff("Tanimoto", rank= 4,    assignable_section = [Section.s30599, Section.sEfree, Section.s30597, Section.sIfree], icu_team = True, ng_request =[]),
-    Staff("Kawakami", rank= 3,    assignable_section = [Section.s30599, Section.sEfree], ng_request =[]),
+    Staff("Asada", rank=16,     assignable_section = [Section.s30591], ng_request =[]),
+    Staff("Yamamoto", rank=16,  assignable_section = [Section.s30591], ng_request =[]),
+    Staff("Wada", rank=18,      assignable_section = [Section.s30599, Section.sEfree, Section.s30595, Section.s30594], ng_request =[]),
+    Staff("Horie", rank=17,     assignable_section = [Section.s30599, Section.sEfree, Section.s30595, Section.s30594], ng_request =[]),
+    Staff("SatoTaku", rank=12,  assignable_section = [Section.s30599, Section.s30595, Section.s30594], ng_request =[], is_phd = True),
+    Staff("Tagami", rank=12,    assignable_section = [Section.s30599, Section.s30595, Section.s30594], ng_request =[], is_phd = True),
+    Staff("Takai", rank=10,     assignable_section = [Section.s30599, Section.s30595, Section.s30594, Section.s30596], ng_request =[], is_phd = True),
+    Staff("Mizuno", rank=10,    assignable_section = [Section.s30599, Section.sIfree, Section.s30597, Section.sEfree, Section.s30595, Section.s30594, Section.s30596], ng_request =[], is_phd = True),
+    Staff("SatoYuko", rank= 8,  assignable_section = [Section.s30599, Section.sIfree, Section.s30597, Section.s30595, Section.s30596], ng_request =[]),
+    Staff("Nakano", rank= 6,    assignable_section = [Section.s30599, Section.sEfree, Section.s30595, Section.s30594], ng_request =[]),
+    Staff("Kimura", rank= 6,    assignable_section = [Section.s30599, Section.sIfree, Section.s30597, Section.s30595, Section.s30596], ng_request =[]),
+    Staff("Arita", rank= 6,     assignable_section = [Section.s30599, Section.sEfree, Section.s30595, Section.s30594], ng_request =[]),
+    Staff("SatoKazu", rank= 5,  assignable_section = [Section.s30599, Section.sIfree, Section.s30597, Section.s30595, Section.s30596], ng_request =[]),
+    Staff("Dozono", rank= 5,    assignable_section = [Section.s30599, Section.sIfree, Section.s30597, Section.s30595, Section.s30594, Section.s30596], ng_request =[]),
+    Staff("Ikegami", rank= 4,   assignable_section = [Section.s30599, Section.sEfree, Section.s30594], ng_request =[]),
+    Staff("Tanimoto", rank= 4,  assignable_section = [Section.s30599, Section.sEfree, Section.s30597, Section.sIfree], ng_request =[]),
+    Staff("Kawakami", rank= 3,  assignable_section = [Section.s30599, Section.sEfree], ng_request =[]),
     Staff("Kawada", rank= 3,    assignable_section = [Section.s30599, Section.sEfree], ng_request =[]),
-    Staff("Noda", rank= 3,    assignable_section = [Section.s30599, Section.sEfree], ng_request =[]),
-    Staff("Matuyama", rank= 3,    assignable_section = [Section.s30599, Section.sEfree], ng_request =[]),
-    Staff("Sue_", rank= 3,    assignable_section = [Section.s30599, Section.sEfree], ng_request =[]),
+    Staff("Noda", rank= 3,      assignable_section = [Section.s30599, Section.sEfree], ng_request =[]),
+    Staff("Matuyama", rank= 3,  assignable_section = [Section.s30599, Section.sEfree], ng_request =[]),
+    Staff("Sue_", rank= 3,      assignable_section = [Section.s30599, Section.sEfree], ng_request =[]),
     # Staff("Taki", rank= 7,    assignable_section = [Section.s30599, Section.sEfree], ng_request =[]),
     # Staff("Kobayasi", rank= 3,    assignable_section = [Section.s30599, Section.sEfree], ng_request =[]),
     # Staff("Ikeda", rank= 5,    assignable_section = [Section.s30599, Section.sEfree], ng_request =[]),
@@ -83,16 +84,6 @@ stafflists_30596 = [get_staff_by_name(name) for name in ("SatoYuko", "SatoKazu",
 stafflists_30594 = [get_staff_by_name(name) for name in ("Nakano", "Arita", "Dozono", "Ikegami")]
 stafflists_30595 = [get_staff_by_section(Section.s30595)] #[get_staff_by_name(name) for name in ("Wada", "Horie")]
 stafflists_30599 = [get_staff_by_section(Section.s30599)]#[get_staff_by_name(name) for name in ("Ikegami", "Kawakami", "Kawada", "Noda", "Matuyama", "Sue_")]
-
-def random_min_count(staff_list):
-    staff_list.sort(key=attrgetter('work_count'))
-    temp_list = staff_list[:1] 
-    for i in range(1, len(staff_list)):
-        if staff_list[0].work_count == staff_list[i].work_count:
-            temp_list.append(staff_list[i])
-        else:
-            break
-    return random.choice(temp_list)
 
 class Daily_assignments:
     def __init__(self, date:datetime.date) -> None:
@@ -123,7 +114,6 @@ class Daily_assignments:
                         Section.extras: []
             }
         }
-
     def assign(self, time:Time, section:Section, staff:Staff):
         if section in (Section.sEfree, Section.sIfree, Section.extras):
             self.staff_of[time][section].append(staff)
@@ -133,6 +123,27 @@ class Daily_assignments:
             staff.work_count += 1
         elif time == Time.night:
             staff.work_count += 1.5
+        elif time == Time.extra:
+            if section == Section.taitou:
+                staff.extra_work_count += 2
+            else:
+                staff.extra_work_count += 1
+
+def random_min_count(staff_list, extra_flag = False): 
+    staff_list.sort(key=attrgetter('work_count'))
+    temp_list = staff_list[:1] 
+    for i in range(1, len(staff_list)):
+        if not extra_flag:
+            if staff_list[0].work_count == staff_list[i].work_count:
+                temp_list.append(staff_list[i])
+            else:
+                break
+        else:
+            if staff_list[0].extra_work_count == staff_list[i].extra_work_count:
+                temp_list.append(staff_list[i])
+            else:
+                break
+    return random.choice(temp_list)
 
 class Schedule_matrix:
     def __init__(self) -> None:
@@ -154,12 +165,13 @@ class Schedule_matrix:
         else:
             day_assignable = [staff for staff in staffs if date not in staff.ng_request]
         night_assignable = [staff for staff in day_assignable if next_date not in staff.ng_request]
-        # 前日夜勤者を除外リストに
+        # 前日夜勤者を除外リストに taitouを追加！
         previous_night_staffs = []
         if date != first_date:
             previous_day = date - datetime.timedelta(days = 1)
             previous_day_schedule = self.schedules[previous_day]
             previous_night_staffs = [previous_day_schedule.staff_of[Time.night][section] for section in night_sections if previous_day_schedule.staff_of[Time.night][section]]
+            previous_night_staffs.append(previous_day_schedule.staff_of[Time.extra][Section.taitou] if previous_day_schedule.staff_of[Time.extra][Section.taitou] is not None else None)
         # 当日勤務者を除外リストに
         same_date_day_staffs = []
         same_date_schedule = self.schedules[date]
@@ -200,6 +212,7 @@ class Schedule_matrix:
                             real_staff = get_staff_by_name(temp_staff.name)
                             temp_matrix.schedules[date].staff_of[time][section] = real_staff
         return temp_matrix
+
     def assign_30591(self): # 30591を割り当て
         # 山本：火水木の日勤30591、日の夜勤30596
         staff = get_staff_by_name("Yamamoto")
@@ -274,6 +287,7 @@ class Schedule_matrix:
                     start_date = first_date
         if complete_flag:
             self.schedules = temp_matrix.schedules
+        return complete_flag
     # 30594を4日単位で割り当て
     def assign_30594(self):
         temp_work_count = {staff.name: staff.work_count for staff in staffs}
@@ -341,6 +355,7 @@ class Schedule_matrix:
                     start_date = first_date
         if complete_flag:
             self.schedules = temp_matrix.schedules
+        return complete_flag
     # 夜勤を596-595-599の順に割り当て
     def assign_nightshifts(self):
         temp_work_count = {staff.name: staff.work_count for staff in staffs}
@@ -361,7 +376,6 @@ class Schedule_matrix:
                         temp_matrix.schedules[date].assign(Time.night, section, staff)
                     else:
                         incomplete_flag = True
-                        print(f"failed to assign {section} on {date}")
                         break
                 if incomplete_flag == True:
                     break
@@ -369,9 +383,10 @@ class Schedule_matrix:
                 for staff in staffs:
                         staff.work_count = temp_work_count[staff.name]
                 continue
-            else:    
+            else:
                 self.schedules = temp_matrix.schedules
                 break
+        return not incomplete_flag
     # 院生+浅田夜勤を追加
     def swap_nightshifts(self):
         # 高井、水野が30596、佐藤拓、田上が30595、と浅田
@@ -422,10 +437,90 @@ class Schedule_matrix:
                 for staff in staffs:
                         staff.work_count = temp_work_count[staff.name]
                 continue
-            else:    
+            else:
                 self.schedules = temp_matrix.schedules
                 break
+        return not incomplete_flag
     # 外勤を割り当て
+    def assign_extras(self):
+        temp_extra_work_count = {staff.name: staff.extra_work_count for staff in staffs}
+        for _ in range(100):
+            print(f"now assigning extra_works... trial{_+1}")
+            # スケジュール表、管理フラグ、work_countの初期化
+            temp_matrix = self.copy_matrix()
+            incomplete_flag = False
+            for date in self.calendar:
+                # 台東（土日、3-5年）に川田、川上、野田、松山、諏江、池上、堂園、佐藤一
+                if date.weekday() in (5, 6):
+                    staff_list = [staff for staff in staffs if staff.name in ("Kawada", "Kawakami", "Noda", "Matuyama", "Sue_", "Ikegami", "Dozono", "SatoKazu") and staff in temp_matrix.daily_assignable_staffs(date)[1]]
+                    if len(staff_list) > 0:
+                        staff = random_min_count(staff_list, extra_flag = True)
+                        temp_matrix.schedules[date].assign(Time.extra, Section.taitou, staff)
+                    else:
+                        incomplete_flag = True
+                        break
+                # 千葉徳（月、3-5年）に川田、川上、野田、松山、諏江、池上、堂園、佐藤一
+                if date.weekday() == 0:
+                    staff_list = [staff for staff in staffs if staff.name in ("Kawada", "Kawakami", "Noda", "Matuyama", "Sue_", "Ikegami", "Dozono", "SatoKazu") and staff in temp_matrix.daily_assignable_staffs(date)[0]]
+                    if len(staff_list) > 0:
+                        staff = random_min_count(staff_list, extra_flag = True)
+                        temp_matrix.schedules[date].assign(Time.extra, Section.chibat, staff)
+                    else:
+                        incomplete_flag = True
+                        break
+                # 大森（月火木、6-8年）に木村、有田、中野、佐藤悠、高井、佐藤拓
+                if date.weekday() in (0, 1, 3):
+                    staff_list = [staff for staff in staffs if staff.name in ("Kimura", "Arita", "Nakano", "SatoYuko", "Takai", "SatoTaku") and staff in temp_matrix.daily_assignable_staffs(date)[0]]
+                    if len(staff_list) > 0:
+                        staff = random_min_count(staff_list, extra_flag = True)
+                        temp_matrix.schedules[date].assign(Time.extra, Section.oomori, staff)
+                    else:
+                        incomplete_flag = True
+                        break
+                # 苑田（火木、3-4年）に川田、川上、野田、松山、諏江、池上
+                if date.weekday() in (1, 3):
+                    staff_list = [staff for staff in staffs if staff.name in ("Kawada", "Kawakami", "Noda", "Matuyama", "Sue_", "Ikegami") and staff in temp_matrix.daily_assignable_staffs(date)[0]]
+                    if len(staff_list) > 0:
+                        staff = random_min_count(staff_list, extra_flag = True)
+                        temp_matrix.schedules[date].assign(Time.extra, Section.sonoda, staff)
+                    else:
+                        incomplete_flag = True
+                        break
+                # 帝京（月金、5-8年）に堂園、佐藤一、木村、有田、中野、佐藤悠
+                if date.weekday() in (0, 4):
+                    staff_list = [staff for staff in staffs if staff.name in ("Dozono", "SatoKazu", "Kimura", "Arita", "Nakano", "SatoYuko") and staff in temp_matrix.daily_assignable_staffs(date)[0]]
+                    if len(staff_list) > 0:
+                        staff = random_min_count(staff_list, extra_flag = True)
+                        temp_matrix.schedules[date].assign(Time.extra, Section.teikyo, staff)
+                    else:
+                        incomplete_flag = True
+                        break
+                # 三井（水金）に水＝堀江、金＝山本、あと高井をランダム
+                if date.weekday() == 2:
+                    staff = get_staff_by_name("Horie")
+                    if staff not in temp_matrix.daily_assignable_staffs(date)[0]:
+                        staff = get_staff_by_name("Takai")
+                        if staff not in temp_matrix.daily_assignable_staffs(date)[0]:
+                            incomplete_flag = True
+                            break
+                    temp_matrix.schedules[date].assign(Time.extra, Section.mitsui, staff)
+                if date.weekday() == 4:
+                    staff = get_staff_by_name("Yamamoto")
+                    if staff not in temp_matrix.daily_assignable_staffs(date)[0]:
+                        staff = get_staff_by_name("Takai")
+                        if staff not in temp_matrix.daily_assignable_staffs(date)[0]:
+                            incomplete_flag = True
+                            break
+                    temp_matrix.schedules[date].assign(Time.extra, Section.mitsui, staff)
+            if incomplete_flag == True:
+                for staff in staffs:
+                        staff.work_count = temp_extra_work_count[staff.name]
+                continue
+            else:
+                self.schedules = temp_matrix.schedules
+                break
+        return not incomplete_flag
+
     # Efree, 30597を割り当て
     def assign_freestaffs(self):
         temp_matrix = self.copy_matrix()
@@ -464,14 +559,27 @@ class Schedule_matrix:
     '''
 
 def main():
-    schedule_matrix = Schedule_matrix()
-    schedule_matrix.assign_30591()
-    schedule_matrix.assign_30596()
-    schedule_matrix.assign_30594()
-    schedule_matrix.assign_nightshifts()
-    schedule_matrix.swap_nightshifts()
-    schedule_matrix.assign_day_ER()
-    schedule_matrix.assign_freestaffs()
+    for i in range(100):
+        print(f"processing {i+1} ...")
+        schedule_matrix = []
+        schedule_matrix = Schedule_matrix()
+        schedule_matrix.assign_30591()
+        flag = schedule_matrix.assign_30596()
+        if not flag:
+            continue
+        flag = schedule_matrix.assign_30594()
+        if not flag:
+            continue
+        schedule_matrix.assign_extras()
+        flag = schedule_matrix.assign_nightshifts()
+        if not flag:
+            continue
+        schedule_matrix.swap_nightshifts()
+        flag = schedule_matrix.assign_day_ER()
+        if not flag:
+            continue
+        schedule_matrix.assign_freestaffs()
+        break
 
     indexes = ["Date", "D_30591", "D_30595", "D_30599", "D_30594", "D_Efree", "D_30596", "D_30597", "D_Ifree", "N_30595", "N_30599", "N_30596"]
     for index in indexes:
@@ -491,9 +599,24 @@ def main():
         output.append(f"{entry.staff_of[Time.night][Section.s30599].name if entry.staff_of[Time.night][Section.s30599] else 'None'}")
         output.append(f"{entry.staff_of[Time.night][Section.s30596].name if entry.staff_of[Time.night][Section.s30596] else 'None'}")
         print("\t    ".join(output))
+    print("")
+    indexes = ["Date", "Sonoda", "Teikyo", "Mitsui", "Oomori", "Taitou", "Chibatok", "Extras"]
+    for index in indexes:
+        print(f"{index}", end="\t    ")
+    print("")
+    for entry in schedule_matrix.schedules.values():
+        output = [f"{entry.date.strftime('%m-%d')}"]
+        output.append(f"{entry.staff_of[Time.extra][Section.sonoda].name if entry.staff_of[Time.extra][Section.sonoda] else '\t'}")
+        output.append(f"{entry.staff_of[Time.extra][Section.teikyo].name if entry.staff_of[Time.extra][Section.teikyo] else '\t'}")
+        output.append(f"{entry.staff_of[Time.extra][Section.mitsui].name if entry.staff_of[Time.extra][Section.mitsui] else '\t'}")
+        output.append(f"{entry.staff_of[Time.extra][Section.oomori].name if entry.staff_of[Time.extra][Section.oomori] else '\t'}")
+        output.append(f"{entry.staff_of[Time.extra][Section.taitou].name if entry.staff_of[Time.extra][Section.taitou] else '\t'}")
+        output.append(f"{entry.staff_of[Time.extra][Section.chibat].name if entry.staff_of[Time.extra][Section.chibat] else '\t'}")
+        output.append(f"{' '.join([staff.name for staff in entry.staff_of[Time.extra][Section.extras]]) if entry.staff_of[Time.extra][Section.extras] else 'None'}")
+        print("\t    ".join(output))
+    
     for staff in staffs:
         print(f"{staff.name} works* {staff.work_count}", end="")
-
         actual_workcount = 0
         for date in schedule_matrix.calendar:
             for section in (Section.s30591, Section.s30595, Section.s30599, Section.s30594, Section.s30596, Section.s30597):
@@ -506,5 +629,5 @@ def main():
             for section in (Section.s30596, Section.s30595, Section.s30599):
                 if schedule_matrix.schedules[date].staff_of[Time.night][section] == staff:
                     actual_workcount += 1.5
-        print(f"({actual_workcount})")
+        print(f"({actual_workcount}), extra={staff.extra_work_count}")
 main()
