@@ -31,7 +31,7 @@ extra_sections =  (Section.sonoda, Section.teikyo, Section.mitsui, Section.taito
 
 # カレンダーの用意
 first_date = datetime.date(2024,7,1)
-last_date = datetime.date(2024,9,30)
+last_date = datetime.date(2024,7,31)
 
 class Staff():
     def __init__(self, name, rank, is_phd = False, assignable_section = None,  ng_request = None):
@@ -123,24 +123,11 @@ class Daily_assignments:
             else:
                 staff.extra_work_count += 1
 
-def random_min_count(staff_list, extra_flag = False): 
-    if extra_flag:
-        staff_list.sort(key=attrgetter('extra_work_count'))
-        temp_list = staff_list[:1] 
-        for i in range(1, len(staff_list)):
-            if staff_list[0].extra_work_count == staff_list[i].extra_work_count:
-                temp_list.append(staff_list[i])
-            else:
-                break
-    else:
-        staff_list.sort(key=attrgetter('work_count'))
-        temp_list = staff_list[:1] 
-        for i in range(1, len(staff_list)):
-            if staff_list[0].work_count == staff_list[i].work_count:
-                temp_list.append(staff_list[i])
-            else:
-                break
-    return random.choice(temp_list)
+def random_min_count(staff_list, extra_flag=False):
+    staff_list.sort(key=attrgetter('work_count' if not extra_flag else 'extra_work_count'))
+    min_work_count = staff_list[0].work_count if not extra_flag else staff_list[0].extra_work_count
+    eligible_staff = [staff for staff in staff_list if (staff.work_count if not extra_flag else staff.extra_work_count) == min_work_count]
+    return random.choice(eligible_staff)
 
 class Schedule_matrix:
     def __init__(self) -> None:
@@ -249,7 +236,7 @@ class Schedule_matrix:
                             can_assign = False
                             break
                     # 連続4日＋最終日夜勤可能か
-                    for i in range(4):
+                    for i in range(j):
                         check_date = start_date + datetime.timedelta(days=i)
                         # 最終日からはみ出す例外処理
                         if check_date > last_date:
@@ -257,7 +244,7 @@ class Schedule_matrix:
                             complete_flag = True
                             break
                         day_assignable, night_assignable = temp_matrix.daily_assignable_staffs(check_date)
-                        if staff not in day_assignable or (i == 3 and staff not in night_assignable):
+                        if staff not in day_assignable or (i == j - 1 and staff not in night_assignable):
                             can_assign = False
                             break
                     # 前日30597＋連続4日＋最終日夜勤可能なとき割り当て
@@ -268,7 +255,7 @@ class Schedule_matrix:
                         for i in range(j):
                             assign_date = start_date + datetime.timedelta(days=i)
                             temp_matrix.schedules[assign_date].assign(Time.day, Section.s30596, staff)
-                            if i == 3:
+                            if i == j - 1:
                                 if self.schedules[assign_date].staff_of[Time.night][Section.s30596] is None:
                                     temp_matrix.schedules[assign_date].assign(Time.night, Section.s30596, staff)
                         start_date += datetime.timedelta(days=j)
