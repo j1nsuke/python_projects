@@ -56,12 +56,12 @@ staffs = [
     Staff("Takai", rank=10,   is_phd = True, assignable_section = [Section.s30595, Section.s30599, Section.s30596, Section.s30597, Section.sIfree, Section.sEfree], icu_team = True, ng_request =[]),
     Staff("Mizuno", rank=10,   is_phd = True, assignable_section = [Section.s30595, Section.s30599, Section.s30594, Section.s30596, Section.s30597, Section.sIfree, Section.sEfree], ng_request =[]),
     Staff("SatoYuko", rank= 8,    assignable_section = [Section.s30595, Section.s30599, Section.s30596, Section.s30597, Section.sIfree], icu_team = True, ng_request =[]),
-    Staff("Nakano", rank= 6,    assignable_section = [Section.s30595, Section.s30599, Section.s30596, Section.s30597, Section.sIfree], icu_team = True, ng_request =[]),
+    Staff("Nakano", rank= 6,    assignable_section = [Section.s30595, Section.s30599, Section.s30594, Section.sEfree], icu_team = True, ng_request =[]),
     Staff("Kimura", rank= 6,    assignable_section = [Section.s30595, Section.s30599, Section.s30596, Section.s30597, Section.sIfree], icu_team = True, ng_request =[]),
     Staff("Arita", rank= 6,    assignable_section = [Section.s30595, Section.s30599, Section.s30594, Section.sEfree], ng_request =[]),
     Staff("SatoKazu", rank= 5,    assignable_section = [Section.s30595, Section.s30599, Section.s30596, Section.s30597, Section.sIfree], icu_team = True, ng_request =[]),
-    Staff("Dozono", rank= 5,    assignable_section = [Section.s30595, Section.s30599, Section.s30594, Section.sEfree, Section.s30596, Section.s30597, Section.sIfree], icu_team = True, ng_request =[]),
-    Staff("Ikegami", rank= 4,    assignable_section = [Section.s30599, Section.sEfree], ng_request =[]),
+    Staff("Dozono", rank= 5,    assignable_section = [Section.s30595, Section.s30599, Section.s30596, Section.s30597, Section.sIfree], icu_team = True, ng_request =[]),
+    Staff("Ikegami", rank= 4,    assignable_section = [Section.s30599, Section.s30594, Section.sEfree], ng_request =[]),
     Staff("Tanimoto", rank= 4,    assignable_section = [Section.s30599, Section.sEfree, Section.s30597, Section.sIfree], icu_team = True, ng_request =[]),
     Staff("Kawakami", rank= 3,    assignable_section = [Section.s30599, Section.sEfree], ng_request =[]),
     Staff("Kawada", rank= 3,    assignable_section = [Section.s30599, Section.sEfree], ng_request =[]),
@@ -79,10 +79,10 @@ def get_staff_by_section(section):
     return [staff for staff in staffs if section in staff.assignable_section]
 
 # 部署ごとスタッフリスト
-stafflists_30596 = [get_staff_by_name(name) for name in ("SatoYuko", "Nakano", "Kimura", "Dozono")]
-stafflists_30594 = [get_staff_by_name(name) for name in ("Horie", "Wada", "Arita", "SatoKazu", "Ikegami")]
-stafflists_30595 = [get_staff_by_name(name) for name in ("Wada", "Horie")]
-stafflists_30599 = [get_staff_by_name(name) for name in ("Ikegami", "Kawakami", "Kawada", "Noda", "Matuyama", "Sue_")]
+stafflists_30596 = [get_staff_by_name(name) for name in ("SatoYuko", "SatoKazu", "Kimura", "Dozono")]
+stafflists_30594 = [get_staff_by_name(name) for name in ("Nakano", "Arita", "Dozono", "Ikegami")]
+stafflists_30595 = [get_staff_by_section(Section.s30595)] #[get_staff_by_name(name) for name in ("Wada", "Horie")]
+stafflists_30599 = [get_staff_by_section(Section.s30599)]#[get_staff_by_name(name) for name in ("Ikegami", "Kawakami", "Kawada", "Noda", "Matuyama", "Sue_")]
 
 class Daily_assignments:
     def __init__(self, date:datetime.date) -> None:
@@ -211,19 +211,20 @@ class Schedule_matrix:
         night_assignable = [staff for staff in night_assignable if staff not in same_date_night_staffs + same_date_extra_staffs + next_date_all_staffs]
 
         return [day_assignable, night_assignable]
-    def replace_schedules(self, temp_schedules):
-        for date in self.calendar:
+    def copy_matrix(self): # copyの際にスタッフインスタンスの参照がずれないように修正
+        temp_matrix = deepcopy(self)
+        for date in temp_matrix.calendar:
             for time in Time:
-                for section in self.schedule_for(date).daily_assignment[time]:
-                    if temp_schedules.schedule_for(date).daily_assignment[time][section] is not None:
-                        temp_staff = temp_schedules.schedule_for(date).daily_assignment[time][section]
+                for section in temp_matrix.schedule_for(date).daily_assignment[time]:
+                    if temp_matrix.schedule_for(date).daily_assignment[time][section] is not None:
+                        temp_staff = temp_matrix.schedule_for(date).daily_assignment[time][section]
                         if section in (Section.sEfree, Section.sIfree, Section.extras):
                             real_staff = [get_staff_by_name(staff.name) for staff in temp_staff]
-                            self.schedule_for(date).daily_assignment[time][section] = real_staff
+                            temp_matrix.schedule_for(date).daily_assignment[time][section] = real_staff
                         else:
                             real_staff = get_staff_by_name(temp_staff.name)
-                            self.schedule_for(date).daily_assignment[time][section] = real_staff
-
+                            temp_matrix.schedule_for(date).daily_assignment[time][section] = real_staff
+        return temp_matrix
 
     # 30591を割り当て
     def assign_30591(self):
@@ -241,17 +242,15 @@ class Schedule_matrix:
                 self.schedule_for(date).assign(Time.day, Section.s30591, staff)
     # 30596, 30597を連続で割り当て
     def assign_30596(self):
-        # 30596可能なメンバーは佐藤悠、佐藤一、中野、堂園、木村
-        icu_staffs = [get_staff_by_name(name) for name in ("SatoYuko", "SatoKazu", "Nakano", "Dozono", "Kimura")]
         start_date = first_date            
-        temp_schedules = copy(self)
+        temp_matrix = self.copy_matrix()
         complete_flag = False
         for _ in range(100):
             if start_date > last_date:
                 complete_flag = True
                 break
             else:
-                staff_list = copy(icu_staffs)
+                staff_list = copy(stafflists_30596)
                 block_assigned = False
                 while len(staff_list) > 0 :
                     staff_list.sort(key=attrgetter('work_count'))
@@ -268,7 +267,7 @@ class Schedule_matrix:
                     # 初日前日30597に配置できるか
                     if start_date != first_date:
                         previous_date = start_date - datetime.timedelta(days=1)
-                        day_assignable, night_assignable = temp_schedules.daily_assignable_staffs(previous_date)
+                        day_assignable, night_assignable = temp_matrix.daily_assignable_staffs(previous_date)
                         if staff not in night_assignable:
                             can_assign = False
                             break
@@ -280,7 +279,7 @@ class Schedule_matrix:
                             j = i
                             complete_flag = True
                             break
-                        day_assignable, night_assignable = temp_schedules.daily_assignable_staffs(check_date)
+                        day_assignable, night_assignable = temp_matrix.daily_assignable_staffs(check_date)
                         if staff not in day_assignable or (i == 3 and staff not in night_assignable):
                             can_assign = False
                             break
@@ -288,13 +287,13 @@ class Schedule_matrix:
                     if can_assign:
                         if start_date != first_date:
                             previous_date = start_date - datetime.timedelta(days=1)
-                            temp_schedules.schedule_for(previous_date).assign(Time.day, Section.s30597, staff)
+                            temp_matrix.schedule_for(previous_date).assign(Time.day, Section.s30597, staff)
                         for i in range(j):
                             assign_date = start_date + datetime.timedelta(days=i)
-                            temp_schedules.schedule_for(assign_date).assign(Time.day, Section.s30596, staff)
+                            temp_matrix.schedule_for(assign_date).assign(Time.day, Section.s30596, staff)
                             if i == 3:
                                 if self.schedule_for(assign_date).daily_assignment[Time.night][Section.s30596] is None:
-                                    temp_schedules.schedule_for(assign_date).assign(Time.night, Section.s30596, staff)
+                                    temp_matrix.schedule_for(assign_date).assign(Time.night, Section.s30596, staff)
                         start_date += datetime.timedelta(days=j)
                         block_assigned = True
                         break
@@ -305,21 +304,17 @@ class Schedule_matrix:
                 if complete_flag:
                     break
                 if not block_assigned: # assign可能なstaffsが尽きる→初期化して初日からやりなおし
-                    temp_schedules = copy(self)
-                    for staff in icu_staffs:
+                    temp_matrix = self.copy_matrix()
+                    for staff in stafflists_30596:
                         staff.work_count = 0
         
         if complete_flag:
-            self.schedules = temp_schedules.schedules
+            self.schedules = temp_matrix.schedules
     
     # 30594を連続で割り当て
     def assign_30594(self):
-        # カウントを退避しとく
-        icu_staffs = [get_staff_by_name(name) for name in ("SatoKazu", "Nakano", "Dozono", "Kimura")]
-        icu_work_count = {staff.name: staff.work_count for staff in icu_staffs}
-        # 30594可能なメンバーは有田、佐藤一、中野、堂園、木村、池上
-        eicu_staffs = [get_staff_by_name(name) for name in ("Arita", "SatoKazu", "Nakano", "Dozono", "Kimura", "Ikegami")]
-        temp_schedules = copy(self)
+        temp_work_count = {staff.name: staff.work_count for staff in staffs}
+        temp_matrix = self.copy_matrix()
         start_date = first_date
         complete_flag = False
         for _ in range(100):
@@ -327,10 +322,9 @@ class Schedule_matrix:
                 complete_flag = True
                 break
             else:
-                staff_list = copy(eicu_staffs)
+                staff_list = copy(stafflists_30594)
                 block_assigned = False
                 while len(staff_list) > 0 :
-                    #少ない順に3人選んでそこからrandom。min()だと順番固定しちゃうから…
                     staff_list.sort(key=attrgetter('work_count'))
                     temp_list = staff_list[:1] 
                     for i in range(1, len(staff_list)):
@@ -344,7 +338,7 @@ class Schedule_matrix:
                     # 初日前日Efreeに配置できるか
                     if start_date != first_date:
                         previous_date = start_date - datetime.timedelta(days=1)
-                        day_assignable, night_assignable = temp_schedules.daily_assignable_staffs(previous_date)
+                        day_assignable, night_assignable = temp_matrix.daily_assignable_staffs(previous_date)
                         if staff not in night_assignable:
                             can_assign = False
                             break
@@ -356,7 +350,7 @@ class Schedule_matrix:
                             j = i
                             complete_flag = True
                             break
-                        day_assignable, night_assignable = temp_schedules.daily_assignable_staffs(check_date)
+                        day_assignable, night_assignable = temp_matrix.daily_assignable_staffs(check_date)
                         if staff not in day_assignable or (i == 3 and staff not in night_assignable):
                             can_assign = False
                             break
@@ -365,15 +359,15 @@ class Schedule_matrix:
                     if can_assign:
                         if start_date != first_date:
                             previous_date = start_date - datetime.timedelta(days=1)
-                            temp_schedules.schedule_for(previous_date).assign(Time.day, Section.sEfree, staff)
+                            temp_matrix.schedule_for(previous_date).assign(Time.day, Section.sEfree, staff)
                         for i in range(j):
                             assign_date = start_date + datetime.timedelta(days=i)
-                            temp_schedules.schedule_for(assign_date).assign(Time.day, Section.s30594, staff)
+                            temp_matrix.schedule_for(assign_date).assign(Time.day, Section.s30594, staff)
                             if i == 3:
                                 if staff.rank >= 5:
-                                    temp_schedules.schedule_for(assign_date).assign(Time.night, Section.s30595, staff)
+                                    temp_matrix.schedule_for(assign_date).assign(Time.night, Section.s30595, staff)
                                 else:
-                                    temp_schedules.schedule_for(assign_date).assign(Time.night, Section.s30599, staff)
+                                    temp_matrix.schedule_for(assign_date).assign(Time.night, Section.s30599, staff)
                         start_date += datetime.timedelta(days=j)
                         block_assigned = True
                         break
@@ -384,32 +378,26 @@ class Schedule_matrix:
                 if complete_flag:
                     break
                 if not block_assigned:
-                    temp_schedules = copy(self)
-                    for staff in eicu_staffs:
-                        if staff in icu_staffs:
-                            staff.work_count = icu_work_count[staff.name]
-                        else:
-                            staff.work_count = 0
+                    temp_matrix = self.copy_matrix()
+                    for staff in staffs:
+                        staff.work_count = temp_work_count[staff.name]
         if complete_flag:
-            self.replace_schedules(temp_schedules)
+            self.schedules = temp_matrix.schedules
     # 夜勤を596-595-599の順に割り当て　※assignable_notyetで院生を除外した
     def assign_nightshifts(self):
         temp_work_count = {staff.name: staff.work_count for staff in staffs}
         for _ in range(100):
             print(f"now assigning nightshifts... trial{_+1}")
             # スケジュール表、管理フラグ、work_countの初期化
-            temp_schedules = copy(self)
+            temp_matrix = self.copy_matrix()
             incomplete_flag = False
-            for staff in staffs:
-                staff.work_count = temp_work_count[staff.name]
-
             for section in (Section.s30596, Section.s30595, Section.s30599):
                 section_staffs = get_staff_by_section(section)
                 for date in self.calendar:
                     # 既に割り振られてる場合はスキップ
-                    if temp_schedules.schedule_for(date).daily_assignment[Time.night][section] is not None:
+                    if temp_matrix.schedule_for(date).daily_assignment[Time.night][section] is not None:
                         continue
-                    daily_staffs = [staff for staff in section_staffs if staff in temp_schedules.daily_assignable_staffs(date)[1]]
+                    daily_staffs = [staff for staff in section_staffs if staff in temp_matrix.daily_assignable_staffs(date)[1]]
                     if len(daily_staffs) > 0:
                         daily_staffs.sort(key=attrgetter('work_count'))
                         temp_list = daily_staffs[:1] 
@@ -419,14 +407,14 @@ class Schedule_matrix:
                             else:
                                 break
                         staff = random.choice(temp_list)
-                        temp_schedules.schedule_for(date).assign(Time.night, section, staff)
+                        temp_matrix.schedule_for(date).assign(Time.night, section, staff)
                     else:
                         incomplete_flag = True
                         print(f"failed to assign {section} on {date}")
                         break
                 if incomplete_flag == True:
                     continue
-            self.replace_schedules(temp_schedules)
+            self.schedules = temp_matrix.schedules
             break
     # 院生+浅田夜勤を追加
     def swap_nightshifts(self):
@@ -460,7 +448,7 @@ class Schedule_matrix:
         for _ in range(100):
             print(f"now assigning dayERs... trial{_+1}")
             # スケジュール表、管理フラグ、work_countの初期化
-            temp_schedules = copy(self)
+            temp_matrix = self.copy_matrix()
             incomplete_flag = False
             for staff in staffs:
                 staff.work_count = temp_work_count[staff.name]
@@ -468,7 +456,7 @@ class Schedule_matrix:
             for section in (Section.s30595, Section.s30599):
                 section_staffs = get_staff_by_section(section)
                 for date in self.calendar:
-                    daily_staffs = [staff for staff in section_staffs if staff in temp_schedules.daily_assignable_staffs(date)[0]]
+                    daily_staffs = [staff for staff in section_staffs if staff in temp_matrix.daily_assignable_staffs(date)[0]]
                     if len(daily_staffs) > 0:
                         daily_staffs.sort(key=attrgetter('work_count'))
                         temp_list = daily_staffs[:1] 
@@ -478,14 +466,14 @@ class Schedule_matrix:
                             else:
                                 break
                         staff = random.choice(temp_list)
-                        temp_schedules.schedule_for(date).assign(Time.day, section, staff)
+                        temp_matrix.schedule_for(date).assign(Time.day, section, staff)
                     else:
                         incomplete_flag = True
                         print(f"failed to assign {section} on {date}")
                         break
                 if incomplete_flag == True:
                     continue
-            self.replace_schedules(temp_schedules)
+            self.schedules = temp_matrix.schedules
             break
     # 外勤を割り当て
     # Efree, 30597を割り当て
@@ -494,7 +482,7 @@ class Schedule_matrix:
         for _ in range(100):
             print(f"now assigning freestaffs... trial{_+1}")
             # スケジュール表、管理フラグ、work_countの初期化
-            temp_data = copy(self)
+            temp_matrix = self.copy_matrix()
             for staff in staffs:
                 staff.work_count = temp_work_count[staff.name]
 
@@ -502,9 +490,9 @@ class Schedule_matrix:
                 section_staffs = get_staff_by_section(section)
                 for date in self.calendar:
                     # 既に割り振られてる場合はスキップ
-                    if temp_data.schedule_for(date).daily_assignment[Time.day][section] is not None:
+                    if temp_matrix.schedule_for(date).daily_assignment[Time.day][section] is not None:
                         continue
-                    daily_staffs = [staff for staff in section_staffs if staff in temp_data.daily_assignable_staffs(date)[0] and staff.work_count < 22]
+                    daily_staffs = [staff for staff in section_staffs if staff in temp_matrix.daily_assignable_staffs(date)[0] and staff.work_count < 22]
                     if len(daily_staffs) > 0:
                         daily_staffs.sort(key=attrgetter('work_count'))
                         temp_list = daily_staffs[:1] 
@@ -514,8 +502,8 @@ class Schedule_matrix:
                             else:
                                 break
                         staff = random.choice(temp_list)
-                        temp_data.schedule_for(date).assign(Time.day, section, staff)
-            self.replace_schedules(temp_data)
+                        temp_matrix.schedule_for(date).assign(Time.day, section, staff)
+            self.schedules = temp_matrix.schedules
             break
     
 def main():
@@ -523,10 +511,10 @@ def main():
     schedule_matrix.assign_30591()
     schedule_matrix.assign_30596()
     schedule_matrix.assign_30594()
-    schedule_matrix.assign_nightshifts()
-    schedule_matrix.swap_nightshifts()
-    schedule_matrix.assign_day_ER()
-    schedule_matrix.assign_freestaffs()
+#    schedule_matrix.assign_nightshifts()
+#    schedule_matrix.swap_nightshifts()
+#    schedule_matrix.assign_day_ER()
+#    schedule_matrix.assign_freestaffs()
 
     indexes = ["Date", "D_30591", "D_30595", "D_30599", "D_30594", "D_Efree", "D_30596", "D_30597", "D_Ifree", "N_30595", "N_30599", "N_30596"]
     for index in indexes:
