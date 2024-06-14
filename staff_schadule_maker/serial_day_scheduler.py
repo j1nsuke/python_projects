@@ -96,6 +96,48 @@ def staff_picker(cal_list, check_date, previous_dr):
             selected_term = None
     return selected_dr, selected_term, cal_limit
 
+def staff_picker(self, temp_matrix, check_date, previous_dr, staff_names):
+    # 先に連勤が最終日をはみ出したときの例外処理をしておこう
+    cal_limit = False
+    cal_limit_days = None
+    if last_date - check_date < datetime.timedelta(days = 5):
+        cal_limit = True
+        cal_limit_days = last_date - check_date
+    if not cal_limit:
+        # 連勤最終日の次の日も疲れているから、そこにng_dateがあたらないようにすると5連勤なら6日間、4連勤なら5日間チェックする必要がある
+        # 同じヒトが連続してあてられてはいけないから除外する
+        workable_5days_dr_list = [staff for staff in staffs if staff.name in staff_names and staff != previous_dr and check_date in temp_matrix.daily_assignable_staffs(check_date)[0] and check_date + datetime.timedelta(days=5) in temp_matrix.daily_assignable_staffs(check_date + datetime.timedelta(days=5))[0]]
+        workable_4days_dr_list = [staff for staff in staffs if staff.name in staff_names and staff != previous_dr and check_date in temp_matrix.daily_assignable_staffs(check_date)[0] and check_date + datetime.timedelta(days=4) in temp_matrix.daily_assignable_staffs(check_date + datetime.timedelta(days=4))[0]]
+        workable_5days_dr_list.sort(key=attrgetter("work_count"))
+        workable_4days_dr_list.sort(key=attrgetter("work_count"))
+        workable_5days_dr_list = workable_5days_dr_list[:2]
+        workable_4days_dr_list = workable_4days_dr_list[:2]
+        # 連勤初日は副勤務者になるから、5連勤なら主勤務者として働くのは4日、4連勤なら3日になる
+        if len(workable_5days_dr_list) > 0:
+            selected_dr = random.choice(workable_5days_dr_list)
+            selected_term = 4
+        elif len(workable_4days_dr_list) > 0:
+            selected_dr = random.choice(workable_4days_dr_list)
+            selected_term = 3
+        else:
+            selected_dr = None
+            selected_term = None
+    else:
+        workable_dr_list = [staff for staff in staffs if staff.name in staff_names and check_date in temp_matrix.daily_assignable_staffs(check_date)[0] and last_date in temp_matrix.daily_assignable_staffs(last_date)[0]]
+        if len(workable_dr_list) > 0:
+            selected_dr = random.choice(workable_dr_list)
+            selected_term = cal_limit_days.days
+        else:
+            selected_dr = None
+            selected_term = None
+    return selected_dr, selected_term, cal_limit
+
+
+
+
+
+
+
 for _ in range(100):
     schedules = []
     incomplete_flag = False
