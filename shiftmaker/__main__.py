@@ -78,7 +78,6 @@ def main():
         Role.ER: {Section.NER: 6, Section.ER: 6, Section.EICU: 7}
     }
 
-
     many_schedules = []
     # 初期シフトをn=20回、その変更をm=5回ずつ模索、合計n*m=100回のシフト作成を行う
     for i in range(30):
