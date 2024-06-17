@@ -22,7 +22,7 @@ def calc_daily_section_counts(team_schedules, weekday_target_counts, weekend_tar
             diff = (target_counts[section] - count)
             daily_section_diffs[date][section] = diff
             shortage = max(0, diff)
-            score += shortage
+            score += shortage if section in (Section.EICU, Section.ICU, Section.ER) else shortage*3
         daily_scores[date] = score
 
     calc_scores = sum(daily_scores.values())
