@@ -37,7 +37,7 @@ weekday_target_counts = {
 }
 weekend_target_counts = {
     Section.ICU: 2,
-    Section.ER: 3,
+    Section.ER: 2,
     Section.NER: 3,
     Section.EICU: 3
 }
@@ -67,24 +67,29 @@ parser.add_argument('-a', '--num_sample', type=int, default=3, help='number of p
 args = parser.parse_args()
 
 def main():
-    target_ym = Target_year_month(year = args.year, month = args.month)
+    target_ym = Target_year_month(year = 2024, month = 7)
     monthly_requests = Convert_to_date(req_list, target_ym.year, target_ym.month)
 
     intern_count = Intern_counter(monthly_requests)
 
-    work_counts = Work_count_calculator(target_ym, intern_count, weekday_target_counts, weekend_target_counts)
+    # work_counts = Work_count_calculator(target_ym, intern_count, weekday_target_counts, weekend_target_counts)
+    work_counts = {
+        Role.ICU: {Section.ICU: 17, Section.NER: 3},
+        Role.ER: {Section.NER: 6, Section.ER: 6, Section.EICU: 7}
+    }
+
 
     many_schedules = []
     # 初期シフトをn=20回、その変更をm=5回ずつ模索、合計n*m=100回のシフト作成を行う
-    for i in range(20):
+    for i in range(30):
         initial_team_schedules = []
         for request in monthly_requests:
             intern_schedule = InternSchedule(request, target_ym)
             intern_schedule.assign_schedule(work_counts)
             initial_team_schedules.append(intern_schedule)
-        for j in range(5):
+        for j in range(2):
             temp_team_schedules, temp_sec_counts, temp_score, improvement_history = ranking_swap_schedule(initial_team_schedules, weekday_target_counts, weekend_target_counts)
-            print(f"\rnow producing schedule samples...{i*5 + j + 1}/100", end="")
+            print(f"\rnow producing schedule samples...{i*2 + j + 1}/100", end="")
             satisfaction_score, satisfaction_stdev = intern_satisfaction_stats(temp_team_schedules)
             trial = f"Trial{i*5 + j + 1}"
             temp = [trial, temp_score, satisfaction_stdev, satisfaction_score, temp_team_schedules, temp_sec_counts]

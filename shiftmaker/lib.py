@@ -66,7 +66,6 @@ def Work_count_calculator(target_ym: Target_year_month, intern_count, weekday_ta
         Role.ICU: {},
         Role.ER: {}
     }
-
     work_counts[Role.ICU][Section.ICU] = math.ceil(total_work_count[Section.ICU] / intern_count[Role.ICU] + 1)
     work_counts[Role.ICU][Section.NER] = math.floor((weekday_count - work_counts[Role.ICU][Section.ICU]) / 1.5)
 
@@ -78,4 +77,5 @@ def Work_count_calculator(target_ym: Target_year_month, intern_count, weekday_ta
         for section, count in section_count.items():
             print(f"{role}-{section} = {count}")
     
+
     return work_counts
