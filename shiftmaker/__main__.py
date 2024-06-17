@@ -75,7 +75,7 @@ def main():
     # work_counts = Work_count_calculator(target_ym, intern_count, weekday_target_counts, weekend_target_counts)
     work_counts = {
         Role.ICU: {Section.ICU: 17, Section.NER: 3},
-        Role.ER: {Section.NER: 6, Section.ER: 6, Section.EICU: 7}
+        Role.ER: {Section.NER: 5, Section.ER: 7, Section.EICU: 7}
     }
 
     many_schedules = []
@@ -86,11 +86,11 @@ def main():
             intern_schedule = InternSchedule(request, target_ym)
             intern_schedule.assign_schedule(work_counts)
             initial_team_schedules.append(intern_schedule)
-        for j in range(2):
+        for j in range(3):
             temp_team_schedules, temp_sec_counts, temp_score, improvement_history = ranking_swap_schedule(initial_team_schedules, weekday_target_counts, weekend_target_counts)
             print(f"\rnow producing schedule samples...{i*2 + j + 1}/100", end="")
             satisfaction_score, satisfaction_stdev = intern_satisfaction_stats(temp_team_schedules)
-            trial = f"Trial{i*5 + j + 1}"
+            trial = f"Trial{i*3 + j + 1}"
             temp = [trial, temp_score, satisfaction_stdev, satisfaction_score, temp_team_schedules, temp_sec_counts]
             many_schedules.append(temp)
     print("")

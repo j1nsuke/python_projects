@@ -53,7 +53,7 @@ def ranking_swap_schedule(team_schedules, weekday_target_counts, weekend_target_
             sorted_date_diffs = sorted(date_diffs.items(), key=lambda item: item[1])
             section_date_diff_rank[section] = sorted_date_diffs
 
-        for section in (Section.NER, Section.EICU, Section.ER, Section.NER, Section.ICU, Section.NER):
+        for section in (Section.EICU, Section.ER, Section.ICU, Section.NER):
             sorted_diffs = section_date_diff_rank[section]
             if sorted_diffs:
                 bigger_date, bigger_diff = sorted_diffs[0] # sortedで大きい方=diffが小さい=余分に勤務者がいる
