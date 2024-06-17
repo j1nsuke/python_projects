@@ -37,7 +37,7 @@ weekday_target_counts = {
 }
 weekend_target_counts = {
     Section.ICU: 2,
-    Section.ER: 2,
+    Section.ER: 3,
     Section.NER: 3,
     Section.EICU: 3
 }
@@ -75,7 +75,7 @@ def main():
     # work_counts = Work_count_calculator(target_ym, intern_count, weekday_target_counts, weekend_target_counts)
     work_counts = {
         Role.ICU: {Section.ICU: 17, Section.NER: 3},
-        Role.ER: {Section.NER: 5, Section.ER: 7, Section.EICU: 7}
+        Role.ER: {Section.NER: 6, Section.ER: 6, Section.EICU: 7}
     }
 
     many_schedules = []
