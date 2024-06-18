@@ -36,25 +36,25 @@ class Request:
 ############################################################################################################################
 monthly_requests = [
     #       Name        Role        Paidoff     NG_absolute         NG_if_possible    
-    Request("Sugimoto", Role.ER,    [5, 6, 13], [26, 29],           [27, 28, 20, 21]),
-    Request("Shiraki",  Role.ICU,   [6, 13],    [1,2,20],           []),
-    Request("Takamoto", Role.ICU,   [19, 20],   [28,29,30],         []),
-    Request("Shimozaki",Role.ER,    [6, 13],    [4,5,19],           [21,28]),
-    Request("Katsu",    Role.ER,    [],         [26,27,28,20,30],   []),
+    Request("Takami",   Role.ICU,   [],         [3,12,19,25],       []),
+    Request("Yuizono",  Role.ICU,   [7,28],     [12,19,29],         []),
     Request("Matsumoto",Role.ICU,   [],         [6,13,3,10,18],     []),
+    Request("Shiraki",  Role.ICU,   [1,2],      [20,6,13],          []),
+    Request("Koumoto",  Role.ICU,   [29,30],    [19,20,28],         []),
+    Request("Sugimoto", Role.ER,    [13],       [5,6,7,26],         [27,28,29]),
+    Request("Shimozaki",Role.ER,    [],         [4,5,6,13,19],      [21,28]),
+    Request("Katsu",    Role.ER,    [],         [26,27,28,29,30],   []),
     Request("Tamaki",   Role.ER,    [],         [6,7,14,17,28],     []),
-    Request("Yuizono",  Role.ICU,   [12, 19],   [29,7,28],          []),
-    Request("Kashibuchi",Role.ER,   [20],       [3,6,15,27],        [28]),
+    Request("Kashibuchi",Role.ER,   [],         [3,31,6,15,20],     [27,28]),
     Request("Okuno",    Role.ER,    [],         [13,14,18,24],      []),
     Request("Ookura",   Role.ER,    [],         [21,28,29,30],      []),
     Request("Iwakawa",  Role.ER,    [],         [21],               []),
-    Request("Takami",   Role.ICU,   [],         [3,12,19,25],       [21, 14, 8, 15, 5, 9]),
     Request("Mitsukuri",Role.ER,    [],         [5,6,21],           []),
-    Request("Oogami",   Role.ER,    [],         [2,18,19,20,21],    [28]),
+    Request("Oogami",   Role.ER,    [],         [1,2,18,19,20,21],    [28]),
     Request("Ochi",     Role.ER,    [],         [6,14,20,27,28],    []),
     Request("Takeda",   Role.ER,    [],         [6,7,27,28,29],     []),
     Request("Ono",      Role.ER,    [],         [7,20,21,27,28],    [3,10,17,24]),
-    Request("Hasegawa", Role.ER,    [],         [18,20,28,29,30],   [31]),
+    Request("Hasegawa", Role.ER,    [],         [1,18,20,21,30,31],   [22,29]),
     Request("Emoto",    Role.ER,    [],         [13],               []),
 ]
 target_counts = {
@@ -313,12 +313,12 @@ class Schedule_matrix():
                 eicu_diff = work_limit[intern.role][Section.EICU] - intern_counts[Section.EICU]
                 intern_satisfaction += eicu_diff ** 2
             intern_satisfaction_scores += intern_satisfaction
-        return section_filled_score * 50, intern_satisfaction_scores
+        return section_filled_score, intern_satisfaction_scores
 
 
 ##################################################################################################################################################
 def main():
-    for tries in range(5):
+    for tries in range(10):
         for _ in range(500):
             print(f"                                                                                        ", end="")
             print(f"\rprogresssing {_ + 1} ...", end="\t")
@@ -341,13 +341,13 @@ def main():
         schedule.swap_er_eicu_1()
         schedule.swap_er_eicu_2()
         schedule.swap_er_eicu_3()
-        section_score50, intern_scores = schedule.evaluator()
+        section_score, intern_scores = schedule.evaluator()
         print("")
         for intern in schedule.schedule_matrix:
             print(f"{intern.role},{intern.name},", end='')
             for date, value in intern.schedule.items():
                 print(f"{value.value}", end=',')
             print("")
-        print(f"section_score50= {section_score50}, intern_scores= {intern_scores}")
+        print(f"section_penalty= {section_score}, intern_satisfaction= {intern_scores}")
 
 main()
