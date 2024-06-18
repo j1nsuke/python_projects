@@ -63,7 +63,7 @@ work_counts = {
 parser = argparse.ArgumentParser()
 parser.add_argument('-y', '--year', type=int, default=datetime.datetime.now().year, help='target year: ')
 parser.add_argument('-m', '--month', type=int, default=datetime.datetime.now().month, help='target month: ')
-parser.add_argument('-a', '--num_sample', type=int, default=3, help='number of printing shift samples')
+parser.add_argument('-a', '--num_sample', type=int, default=5, help='number of printing shift samples')
 args = parser.parse_args()
 
 def main():

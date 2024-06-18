@@ -1,0 +1,445 @@
+import datetime
+import calendar
+import random
+import statistics
+from enum import Enum
+from copy import deepcopy
+from collections import defaultdict
+from operator import itemgetter
+
+class TargetYearMonth:
+    def __init__(self, year: int, month: int):
+        self.year = year
+        self.month = month
+target_ym = TargetYearMonth(year = 2024, month = 7)
+target_cal = [datetime.date(target_ym.year, target_ym.month, day) for day in range(1, calendar.monthrange(target_ym.year, target_ym.month)[1] + 1)]
+
+class Section(Enum):
+    OFF = 'OFF_'
+    ER = 'ER__'
+    NER = 'NER_'
+    ICU = 'ICU_'
+    EICU = 'EICU'
+    Paidoff = 'Poff'
+    NG_A = 'NG_A'
+    NG_B = 'NG_B'
+class Role(Enum):
+    ER = 'ER'
+    ICU = 'ICU'
+class Request:
+    def __init__(self, name: str, role: Role, paidoff_list: list, ng_a: list, ng_b: list):
+        self.name = name
+        self.role = role
+        self.paidoff_list = [datetime.date(target_ym.year, target_ym.month, day) for day in paidoff_list] if paidoff_list else []
+        self.ng_a = [datetime.date(target_ym.year, target_ym.month, day) for day in ng_a] if ng_a else []
+        self.ng_b = [datetime.date(target_ym.year, target_ym.month, day) for day in ng_b] if ng_b else []
+############################################################################################################################
+monthly_requests = [
+    #       Name        Role        Paidoff     NG_absolute         NG_if_possible    
+    Request("Sugimoto", Role.ER,    [5, 6, 13], [26, 29],           [27, 28, 20, 21]),
+    Request("Shiraki",  Role.ICU,   [6, 13],    [1,2,20],           []),
+    Request("Takamoto", Role.ICU,   [19, 20],   [28,29,30],         []),
+    Request("Shimozaki",Role.ER,    [6, 13],    [4,5,19],           [21,28]),
+    Request("Katsu",    Role.ER,    [],         [26,27,28,20,30],   []),
+    Request("Matsumoto",Role.ICU,   [],         [6,13,3,10,18],     []),
+    Request("Tamaki",   Role.ER,    [],         [6,7,14,17,28],     []),
+    Request("Yuizono",  Role.ICU,   [12, 19],   [29,7,28],          []),
+    Request("Kashibuchi",Role.ER,   [20],       [3,6,15,27],        [28]),
+    Request("Okuno",    Role.ER,    [],         [13,14,18,24],      []),
+    Request("Ookura",   Role.ER,    [],         [21,28,29,30],      []),
+    Request("Iwakawa",  Role.ER,    [],         [21],               []),
+    Request("Takami",   Role.ICU,   [],         [3,12,19,25],       [21, 14, 8, 15, 5, 9]),
+    Request("Mitsukuri",Role.ER,    [],         [5,6,21],           []),
+    Request("Oogami",   Role.ER,    [],         [2,18,19,20,21],    [28]),
+    Request("Ochi",     Role.ER,    [],         [6,14,20,27,28],    []),
+    Request("Takeda",   Role.ER,    [],         [6,7,27,28,29],     []),
+    Request("Ono",      Role.ER,    [],         [7,20,21,27,28],    [3,10,17,24]),
+    Request("Hasegawa", Role.ER,    [],         [18,20,28,29,30],   [31]),
+    Request("Emoto",    Role.ER,    [],         [13],               []),
+]
+target_counts = {
+    "weekday": {
+    Section.ICU: 3,
+    Section.ER:  3,
+    Section.NER: 3,
+    Section.EICU:3
+    },
+    "weekend": {
+    Section.ICU: 2,
+    Section.ER:  3,
+    Section.NER: 3,
+    Section.EICU:3
+    }
+}
+work_limit= {
+    Role.ER: {
+    Section.ER:  6,
+    Section.NER: 5,
+    Section.EICU:7
+    },
+    Role.ICU: {
+    Section.ICU: 17,
+    Section.NER: 3
+    }
+}
+
+############################################################################################################################
+class Intern_Schedule:
+    def __init__(self, intern: Request):
+        self.intern = intern
+        self.name = intern.name
+        self.role = intern.role
+        self.schedule = {date: Section.OFF for date in target_cal}
+        for paidoff in self.intern.paidoff_list:
+            self.schedule[paidoff] = Section.Paidoff
+        for ng_a in self.intern.ng_a:
+            self.schedule[ng_a] = Section.NG_A
+        for ng_b in self.intern.ng_b:
+            self.schedule[ng_b] = Section.NG_B
+        self.protoschedule = deepcopy(self.schedule)
+        self.day_count = len(self.intern.paidoff_list) # 最初から有休分を日勤数に計上しておく
+        self.night_count = 0
+
+    def is_off_on(self, date: datetime.date) -> bool:
+        return self.schedule[date] in [Section.OFF, Section.Paidoff, Section.NG_A, Section.NG_B]
+    
+    def is_available_on(self, date: datetime.date) -> bool:
+        return self.schedule[date] in [Section.OFF, Section.NG_B] \
+            and (self.schedule[date - datetime.timedelta(days = 1)] != Section.NER if date != target_cal[0] else True)
+    
+    def is_available_for_ner_on(self, date: datetime.date) -> bool:
+        return self.schedule[date]                                  in [Section.OFF, Section.NG_B] \
+            and (self.schedule[date - datetime.timedelta(days = 1)] != Section.NER                 if date != target_cal[0] else True) \
+            and (self.schedule[date + datetime.timedelta(days = 1)] in [Section.OFF, Section.NG_B] if date != target_cal[-1] else True)
+            
+    def is_valid_schedule(self)-> bool: # 禁則：6連勤以上または夜勤後に勤務/有休パターンを排除
+        CONSEQUTIVE_WORK_LIMIT = 6
+        count = 0
+        for date in target_cal:
+            if not self.is_off(date):
+                count += 1
+            else:
+                count = 0
+            if count >= CONSEQUTIVE_WORK_LIMIT:
+                return False
+        for date in target_cal[:-1]:
+            next_date = date + datetime.timedelta(days = 1)
+            if self.schedule[date] == Section.NER and self.schedule[next_date] not in (Section.OFF, Section.NG_B):
+                return False
+        return True
+
+class Schedule_matrix():
+    def __init__(self, monthly_requests):
+        self.schedule_matrix = [Intern_Schedule(request) for request in monthly_requests]
+
+    def calc_section_counts(self):
+        section_counts_table = defaultdict(lambda: defaultdict(int))
+        for intern in self.schedule_matrix:
+            for date, section in intern.schedule.items():
+                if section in (Section.NER, Section.ICU, Section.EICU, Section.ER):
+                    section_counts_table[section][date] += 1
+        return section_counts_table
+    
+    def ner_assignable_counts(self):
+        ner_assinabble_counts = defaultdict(int)
+        for date in target_cal:
+            for intern in self.schedule_matrix:
+                if intern.is_available_for_ner_on(date) and intern.night_count < work_limit[intern.role][Section.NER]:
+                    ner_assinabble_counts[date] += 1
+        return ner_assinabble_counts
+    
+    def assign_ner(self):
+        #最低人数の割り当て
+        ner_assignable_counts = self.ner_assignable_counts()
+        for date, counts in ner_assignable_counts.items():
+            if counts <= 3:
+                print(f"NER assignable only {counts} interns on {date}")
+        for _ in range(300):
+            temp_matrix = deepcopy(self)
+            complete_flag = True
+            ner_assignable_counts = temp_matrix.ner_assignable_counts()
+            ner_assignable_counts_sorted = sorted(ner_assignable_counts.items(), key=itemgetter(1))
+            for date, count_not_used in ner_assignable_counts_sorted:
+                # Role.ICUは同日1人までにしないと後で詰む
+                assignable_list_from_er = [intern.name for intern in temp_matrix.schedule_matrix if intern.is_available_for_ner_on(date) and intern.night_count < work_limit[intern.role][Section.NER] and intern.role == Role.ER]
+                assignable_list_from_icu = [intern.name for intern in temp_matrix.schedule_matrix if intern.is_available_for_ner_on(date) and intern.night_count < work_limit[intern.role][Section.NER] and intern.role == Role.ICU]
+                assignable_list = assignable_list_from_er + ([random.choice(assignable_list_from_icu)] if assignable_list_from_icu else [])
+                if len(assignable_list) < 2:
+                    complete_flag = False
+                    break
+                is_weekday = "weekday" if date.weekday() < 5 else "weekend"
+                ner_counts = target_counts[is_weekday][Section.NER]
+                ner_counts = ner_counts if ner_counts <= len(assignable_list) else len(assignable_list)  #そもそも足りなければ減らす他ない
+                intern_names = random.sample(assignable_list, ner_counts)
+                for intern in temp_matrix.schedule_matrix:
+                    if intern.name in intern_names:
+                        intern.schedule[date] = Section.NER
+                        intern.night_count += 1
+            if complete_flag:
+                print(f"NER assigned: {_+1} try", end="\t")
+                self.schedule_matrix = temp_matrix.schedule_matrix
+                break
+        #夜勤上限まで追加
+        for intern in self.schedule_matrix:
+            while work_limit[intern.role][Section.NER] > intern.night_count:
+                section_counts_table = self.calc_section_counts()
+                counts_cal = sorted(section_counts_table[Section.NER].items(), key=itemgetter(1))
+                for date, unused_counts in counts_cal:
+                    if intern.is_available_for_ner_on(date):
+                        intern.schedule[date] = Section.NER
+                        intern.night_count += 1
+                        break
+
+    def day_assignable_counts(self, role):
+        day_assinabble_counts = defaultdict(int)
+        for date in target_cal:
+            for intern in self.schedule_matrix:
+                if intern.role == role and intern.is_available_on(date) \
+                    and intern.day_count < (work_limit[intern.role][Section.ICU] if role == Role.ICU else work_limit[intern.role][Section.ER] + work_limit[intern.role][Section.EICU]):
+                    day_assinabble_counts[date] += 1
+        return day_assinabble_counts
+    
+    def assign_day(self):
+        #最低人数の割り当て            
+        for role in (Role.ICU, Role.ER):
+            for _ in range(1000):
+                temp_matrix = deepcopy(self)
+                complete_flag = True
+                day_assignable_counts = temp_matrix.day_assignable_counts(role)
+                day_assignable_counts_sorted = sorted(day_assignable_counts.items(), key=itemgetter(1))
+                for date, count_not_used in day_assignable_counts_sorted:
+                    assignable_list = [intern.name for intern in temp_matrix.schedule_matrix if intern.role == role and intern.is_available_on(date) \
+                        and intern.day_count < (work_limit[intern.role][Section.ICU] if role == Role.ICU else work_limit[intern.role][Section.ER] + work_limit[intern.role][Section.EICU])]
+                    if len(assignable_list) < (1 if role == Role.ICU else 4):
+                        complete_flag = False
+                        break
+                    is_weekday = "weekday" if date.weekday() < 5 else "weekend"
+                    day_counts = target_counts[is_weekday][Section.ICU] if role == Role.ICU else target_counts[is_weekday][Section.ER] + target_counts[is_weekday][Section.EICU]
+                    day_counts = day_counts if day_counts <= len(assignable_list) else len(assignable_list)  #そもそも足りなければ減らす他ない
+                    intern_names = random.sample(assignable_list, day_counts)
+                    for intern in temp_matrix.schedule_matrix:
+                        if intern.name in intern_names:
+                            intern.schedule[date] = Section.ICU if role == Role.ICU else Section.EICU
+                            intern.day_count += 1
+                if complete_flag:
+                    print(f"day assigned for {role}: {_+1} try", end="\t")
+                    self.schedule_matrix = temp_matrix.schedule_matrix
+                    break
+        # 上限まで追加
+        for intern in self.schedule_matrix:
+            while intern.day_count < (work_limit[intern.role][Section.ICU] if intern.role == Role.ICU else (work_limit[intern.role][Section.EICU] + work_limit[intern.role][Section.ER])):
+                section_counts_table = self.calc_section_counts()
+                counts_cal = sorted(section_counts_table[Section.ICU].items(), key=itemgetter(1)) if intern.role == Role.ICU else sorted(section_counts_table[Section.EICU].items(), key=itemgetter(1))
+                assigned = False
+                for date, unused_counts in counts_cal:
+                    if intern.is_available_on(date):
+                        intern.schedule[date] = Section.ICU if intern.role == Role.ICU else Section.EICU
+                        intern.day_count += 1
+                        assigned = True
+                        break                
+                if not assigned:
+                    break
+
+##################################################################################################################################################
+def main():
+    for _ in range(500):
+        print(f"                                                                                        ", end="")
+        print(f"\rprogresssing {_ + 1} ...", end="\t")
+        schedule = Schedule_matrix(monthly_requests)
+        schedule.assign_ner()
+        restart = False
+        for role in (Role.ICU, Role.ER):
+            day_assignable_counts = schedule.day_assignable_counts(role)
+            day_assignable_counts_sorted = sorted(day_assignable_counts.items(), key=itemgetter(1))
+            min_date, min_count = day_assignable_counts_sorted[0]
+            if min_count < (1 if role == Role.ICU else 4):
+                print(f"{role} too tight on {min_date}", end="\t")
+                restart = True
+                break
+        if restart:
+            continue
+        else:
+            break
+    schedule.assign_day()
+    print("")
+        
+    for intern in schedule.schedule_matrix:
+        print(f"{intern.role},{intern.name},", end='')
+        for date, value in intern.schedule.items():
+            print(f"{value.value}", end=',')
+        print("")
+main()
+
+
+
+
+
+'''
+
+
+    def intern_satisfaction_stats(self):
+        intern_satisfactions = []
+        for intern in self.schedule_matrix:
+            score = intern.satisfaction()
+            intern_satisfactions.append(score)
+        total_score = sum(intern_satisfactions)
+        stdev = statistics.stdev(intern_satisfactions)
+        return total_score, stdev
+
+
+#swap_A_B()の実装
+def swap_A_B(schedule_matrix, bigger_date, smaller_date, sectionA: Section, sectionB: Section):
+    for intern in schedule_matrix:
+        if intern.schedule[bigger_date] == sectionA and intern.schedule[smaller_date] == sectionB:
+            intern.schedule[bigger_date] = sectionB
+            intern.schedule[smaller_date] = sectionA
+            if intern.is_valid():
+                break
+            else:
+                intern.schedule[bigger_date] = sectionA
+                intern.schedule[smaller_date] = sectionB            
+                for _ in range(50): # bigger, smallerのペアだけで改善出来ない、勤務者なしの部分をうめてるのかな？
+                    rand_date = random.choice(schedule_matrix[0].datelist)
+                    if intern.schedule[rand_date] == sectionA and intern.schedule[smaller_date] == sectionB:
+                        intern.schedule[rand_date] = sectionB
+                        intern.schedule[smaller_date] = sectionA
+                        if intern.is_valid():
+                            break
+                        else:
+                            intern.schedule[rand_date] = sectionA
+                            intern.schedule[smaller_date] = sectionB
+                    elif intern.schedule[bigger_date] == sectionA and intern.schedule[rand_date] == sectionB:
+                        intern.schedule[bigger_date] = sectionB
+                        intern.schedule[rand_date] = sectionA
+                        if intern.is_valid():
+                            break
+                        else:
+                            intern.schedule[bigger_date] = sectionA
+                            intern.schedule[rand_date] = sectionB
+                    else:
+                        continue
+                    break
+    return schedule_matrix
+
+# ranking_swap_schedule() shortageを順位付けして勤務を見つける手法
+def ranking_swap_schedule(schedule_matrix, weekday_target_counts, weekend_target_counts, iterations=250):
+    improvements = []
+    schedule_matrix = deepcopy(schedule_matrix)
+    final_sec_counts, init_sec_diffs, final_scores = calc_daily_section_counts(schedule_matrix, weekday_target_counts, weekend_target_counts)
+    
+    for k in range(iterations):
+        init_sec_counts, init_sec_diffs, init_scores = calc_daily_section_counts(schedule_matrix, weekday_target_counts, weekend_target_counts)
+        
+        section_date_diff_rank = defaultdict(list)
+        for section in (Section.ICU, Section.EICU, Section.ER, Section.NER):
+            date_diffs = {date: diff[section] for date, diff in init_sec_diffs.items() if section in diff}
+            sorted_date_diffs = sorted(date_diffs.items(), key=lambda item: item[1])
+            section_date_diff_rank[section] = sorted_date_diffs
+
+        for section in (Section.NER, Section.EICU, Section.NER, Section.ER, Section.NER, Section.ICU, Section.NER):
+            sorted_diffs = section_date_diff_rank[section]
+            if sorted_diffs:
+                bigger_date, bigger_diff = sorted_diffs[0] # sortedで大きい方=diffが小さい=余分に勤務者がいる
+                smaller_date, smaller_diff = sorted_diffs[-1]
+                new_schedule_matrix = swap_A_B(schedule_matrix, bigger_date, smaller_date, section, Section.OFF)
+
+        new_sec_counts, new_sec_diffs,  new_scores = calc_daily_section_counts(new_schedule_matrix, weekday_target_counts, weekend_target_counts)
+        improvement = init_scores - new_scores
+        improvements.append(improvement)
+        if improvement > 0:
+            schedule_matrix = new_schedule_matrix
+            final_sec_counts = new_sec_counts
+            final_sec_diffs = new_sec_diffs
+            final_scores = new_scores
+            
+    return schedule_matrix, final_sec_counts, final_scores, improvements
+'''
+
+'''
+    def assign_schedule(self, work_counts):
+        protoschedule = deepcopy(self.protoschedule)
+        for trial in range (100):
+            restart = False
+            self.schedule = deepcopy(protoschedule)
+            if self.intern.role == Role.ER:
+                # 夜勤
+                for _ in range(work_counts[self.intern.role][Section.NER]):
+                    if len(self.find_NER_assignable()) == 0:
+                        restart = True
+                    else:
+                        random_day = random.choice(self.find_NER_assignable())
+                        self.schedule[random_day] = Section.NER
+                # 日勤
+                day_count = work_counts[self.intern.role][Section.EICU] + work_counts[self.intern.role][Section.ER]
+                if len(self.find_day_assignable()) < day_count:
+                        restart = True
+                else:
+                    random_day_list = random.sample(self.find_day_assignable(), day_count)
+                    for random_day in random_day_list:
+                        self.schedule[random_day] = Section.ER
+
+            elif self.intern.role == Role.ICU:
+                # 夜勤
+                for _ in range(work_counts[self.intern.role][Section.NER]):
+                    if len(self.find_NER_assignable()) == 0:
+                        restart = True
+                    else:
+                        random_day = random.choice(self.find_NER_assignable())
+                        self.schedule[random_day] = Section.NER
+                # 日勤
+                day_count = work_counts[self.intern.role][Section.ICU]
+                if len(self.find_day_assignable()) < day_count:
+                        restart = True
+                else:
+                    random_day_list = random.sample(self.find_day_assignable(), day_count)
+                    for random_day in random_day_list:
+                        self.schedule[random_day] = Section.ICU
+            if self.is_valid() and not restart: # 禁則（6連勤以上またはNER→OFFでない）パターンの勤務はやりなおし、かつ夜勤が割り振れていれば
+                break
+        return self.schedule
+    def section_count(self, section: Section):
+        count = 0
+        for date in self.schedule:
+            if self.schedule[date] == section:
+                count += 1
+        return count
+
+    def print_workcount(self):
+        ER_count = self.section_count(Section.ER)
+        EICU_count = self.section_count(Section.EICU)
+        ICU_count = self.section_count(Section.ICU)
+        NER_count = self.section_count(Section.NER)
+        # NG_A_count = self.section_count(Section.NG_A)
+        satisfaction = self.satisfaction()
+        print(f"{self.name}...EICU: {EICU_count}, ER: {ER_count}, ICU: {ICU_count}, NER: {NER_count}, PaidOFF: {self.intern.paidoff}, satisfaction: {satisfaction}")
+    
+    def satisfaction(self):
+        score = 0
+        consequtive_EICU_count = 0
+        EICU_one_miss = False
+        consequtive_off_count = 0
+        for date in target_cal:
+            # 週末の勤務で -10
+            if not self.is_off(date) and date.weekday() in (5,6):
+                score -= 10
+            # EICU連続勤務で加点 2連 +1 3連 +4 4連 +9 5連 +16　
+            if self.schedule[date] == Section.EICU:
+                consequtive_EICU_count += 1
+                score += (consequtive_EICU_count - 1)**2
+                EICU_one_miss = True
+            else: # EICU 1回スキップは連勤カウントに含める
+                if EICU_one_miss == True:
+                    EICU_one_miss = False
+                else:
+                    consequtive_EICU_count = 0
+            # 連続休暇で 2連 +1 3連 +8 4連 +27
+            if self.is_off(date):
+                consequtive_off_count += 1
+                score += (consequtive_off_count - 1)**3
+            else:
+                consequtive_off_count = 0
+            # NG_Bがoffなら +15
+            if self.is_off(date) and date in self.intern.extra_ng_dates:
+                score += 15
+        return score
+    '''
