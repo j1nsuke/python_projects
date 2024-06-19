@@ -160,10 +160,11 @@ staffs = [
     # Staff("Ikeda", rank= 5,    assignable_section = [Section.s30599, Section.sEfree], ng_request =[]),
 ]
 
-class Daily_assigns:
-    def __init__(self, date:datetime.date) -> None:
-        self.date = date
-        self.staff_of = {
+class Monthly_schedules:
+    def __init__(self) -> None:
+        self.schedules = {}
+        for date in target_cal:
+            daily_assigns = {
             Time.day    :{
                         Section.s30591: None,
                         Section.s30595: None,
@@ -187,48 +188,43 @@ class Daily_assigns:
                         Section.taitou: None,
                         Section.chibat: None,
                         Section.extras: []
-            }
-        }
-    def assign(self, time, section, staff: Staff):
+            }}
+            self.schedules[date] = daily_assigns
+
+    def assign(self, date, time, section, staff: Staff):
         if section in (Section.sEfree, Section.sIfree, Section.extras):
-            self.staff_of[time][section].append(staff.name)
+            self.schedules[date][time][section].append(staff.name)
         else:
-            self.staff_of[time][section] = staff.name
+            self.schedules[date][time][section] = staff.name
 
         if time == Time.extra:
             if section == Section.taitou:
                 staff.extra_work_count += 2
-                staff.personal_schedule[self.date][Time.day] = section
-                staff.personal_schedule[self.date][Time.night] = section                
+                staff.personal_schedule[date][Time.day] = section
+                staff.personal_schedule[date][Time.night] = section                
             else:
                 staff.extra_work_count += 1
-                staff.personal_schedule[self.date][Time.day] = section            
+                staff.personal_schedule[date][Time.day] = section            
         elif time == Time.day:
             staff.work_count += 1
-            staff.personal_schedule[self.date][time] = section
+            staff.personal_schedule[date][time] = section
         elif time == Time.night:
             staff.work_count += 1.5
-            staff.personal_schedule[self.date][time] = section
-    def is_valid(self) -> bool:
-        staff_filled = all([self.staff_of[Time.day][section] is not None for section in (Section.s30595, Section.s30599, Section.s30594, Section.s30596)] \
-            + [self.staff_of[Time.night][section] is not None for section in (Section.s30595, Section.s30599, Section.s30596)])
+            staff.personal_schedule[date][time] = section
+
+    def is_valid_assign(self, date) -> bool:
+        staff_filled = all([self.schedules[date][Time.day][section] is not None for section in (Section.s30595, Section.s30599, Section.s30594, Section.s30596)] \
+            + [self.schedules[date][Time.night][section] is not None for section in (Section.s30595, Section.s30599, Section.s30596)])
         
-        day_staffs = [self.staff_of[Time.day][section] for section in (Section.s30591, Section.s30595, Section.s30599, Section.s30594, Section.s30596, Section.s30597) if not None]\
-                    + self.staff_of[Time.day][Section.sIfree] + self.staff_of[Time.day][Section.sEfree]
-        night_staffs = [self.staff_of[Time.night][section] for section in (Section.s30595, Section.s30599, Section.s30596) if not None]
-        extra_staffs = [self.staff_of[Time.extra][section] for section in (Section.sonoda, Section.teikyo, Section.mitsui, Section.taitou, Section.oomori, Section.chibat) if not None]\
-                    + self.staff_of[Time.extra][Section.extras]
+        day_staffs = [self.schedules[date][Time.day][section] for section in (Section.s30591, Section.s30595, Section.s30599, Section.s30594, Section.s30596, Section.s30597) if not None]\
+                    + self.schedules[date][Time.day][Section.sIfree] + self.schedules[date][Time.day][Section.sEfree]
+        night_staffs = [self.schedules[date][Time.night][section] for section in (Section.s30595, Section.s30599, Section.s30596) if not None]
+        extra_staffs = [self.schedules[date][Time.extra][section] for section in (Section.sonoda, Section.teikyo, Section.mitsui, Section.taitou, Section.oomori, Section.chibat) if not None]\
+                    + self.schedules[date][Time.extra][Section.extras]
         day_staff_not_conflicted = True if len(day_staffs + extra_staffs) == len(set(day_staffs + extra_staffs)) else False
         night_staff_not_conflicted = True if len(night_staffs + extra_staffs) == len(set(night_staffs + extra_staffs)) else False
         return all([staff_filled, day_staff_not_conflicted, night_staff_not_conflicted]) # 必須セクションが埋まっていること、日勤＋外勤に重複がないこと、夜勤＋外勤に重複がないこと
     
-class Monthly_assigns:
-    def __init__(self) -> None:
-        self.schedules = {}
-        for date in target_cal:
-            daily_assigns = Daily_assigns(date)
-            self.schedules[date] = daily_assigns
-
     def daily_assignable_staffs(self, date, include_phd = False):
         # 勤務不可日とその前日夜勤を除外して勤務可能者リストを作成、院生を除外
         next_date = date + datetime.timedelta(days = 1)
