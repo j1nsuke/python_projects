@@ -63,7 +63,6 @@ staffs = [
     Staff("Noda", rank= 3,      assignable_section = [Section.s30599, Section.sEfree], ng_request =[]),
     Staff("Matuyama", rank= 3,  assignable_section = [Section.s30599, Section.sEfree], ng_request =[]),
     Staff("Sue_", rank= 3,      assignable_section = [Section.s30599, Section.sEfree], ng_request =[]),
-
     Staff("Taki", rank= 7,      assignable_section = [Section.s30599, Section.sEfree, Section.sIfree, Section.s30597], ng_request =[]),
     # Staff("Kobayasi", rank= 3,    assignable_section = [Section.s30599, Section.sEfree], ng_request =[]),
     # Staff("Ikeda", rank= 5,    assignable_section = [Section.s30599, Section.sEfree], ng_request =[]),
