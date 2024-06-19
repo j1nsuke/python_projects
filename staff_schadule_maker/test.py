@@ -2,7 +2,7 @@ import random
 import datetime
 from copy import deepcopy, copy
 from enum import Enum
-from operator import attrgetter
+from operator import attrgetter, itemgetter
 # カレンダーの用意
 cal_begin   = datetime.date(2024,7,1)
 cal_end     = datetime.date(2024,9,30)
@@ -118,9 +118,9 @@ staffs = [
 dummy_staff = Staff("Dummy", rank=10, certified_section = [Section.s30594, Section.s30595, Section.s30596], ng_request =[]),
 # certified_sectionと重複しているような気もするが、月ごとに違うっぽいから…
 section_namelist = {
-        Section.s30594: ["中野", "有田", "堂園", "池上"],
-        Section.s30595: ["和田", "堀江"],
-        Section.s30596: ["佐藤悠", "木村", "佐藤一"],
+        "EICU": ["中野", "有田", "堂園", "池上"],
+        "ER": ["和田", "堀江"],
+        "ICU": ["佐藤悠", "木村", "佐藤一"],
 }
 
 def get_staff_by_name(name):
@@ -156,12 +156,18 @@ class Monthly_schedules:
             }}
             self.schedules[date] = daily_assigns
     def assign(self, date, time, section, name):
+        staff = get_staff_by_name(name)
+        time_category = Time.night if time == Time.night else Time.day
+        check_isoff = staff.personal_schedule[date][time_category] == Section.OFF
+        if not check_isoff:
+            print(f"cannot assign {name} on {date},{time},{section}")
+            return None
+
         if section in (Section.sEfree, Section.sIfree, Section.extras):
             self.schedules[date][time][section].append(name)
         else:
             self.schedules[date][time][section] = name
 
-        staff = get_staff_by_name(name)
         if time == Time.extra:
             if section == Section.taitou:
                 staff.extra_work_count += 2
@@ -190,11 +196,12 @@ class Monthly_schedules:
         return all([staff_filled, day_staff_not_conflicted, night_staff_not_conflicted]) # 必須セクションが埋まっていること、日勤＋外勤に重複がないこと、夜勤＋外勤に重複がないこと
     def assignable_stafflist(self, date, time): # StaffではなくStaff.nameを返してるので注意
         return [staff.name for staff in staffs if staff.available(date, time)] if time in (Time.day, Time.night) else None
-    def block_assignable_stafflist(self, date, block_num):
+    def block_assignable_stafflist(self, date, min_blockdate):
         block_assignable_stafflist = {}
         for staff in staffs:
-            if staff.available_days(date) >= block_num:
-                block_assignable_stafflist[staff.name] = staff.available_days
+            if staff.available_days(date) >= min_blockdate:
+                block_assignable_stafflist[staff.name] = [staff.available_days, staff.work_count]
+        return block_assignable_stafflist
 
     def assign_30591(self): # 30591を割り当て  山本：火水木30591、日曜夜30596 浅田：その他平日30591
         for date in target_cal:
@@ -204,73 +211,62 @@ class Monthly_schedules:
                 self.assign(date, Time.day, Section.s30591, "浅田")
             elif date.weekday() == 6:
                 self.assign(date, Time.night, Section.s30596, "山本")
-
     def assign_icu_and_eicu(self):
         icu_item = [
-            {"main_section": Section.s30596, "sub_section": Section.s30597, "staff_namelist": icu_staff_name, "night_section": Section.s30596},
-            {"main_section": Section.s30594, "sub_section": Section.sEfree, "staff_namelist": eicu_staff_name, "night_section": Section.s30595}
+            {"main_section": Section.s30596, "sub_section": Section.s30597, "section_namelist": section_namelist["ICU"], "night_section": Section.s30596},
+            {"main_section": Section.s30594, "sub_section": Section.sEfree, "section_namelist": section_namelist["EICU"], "night_section": Section.s30595}
         ]
         for item in icu_item:
             main_section = item["main_section"]
             sub_section = item["sub_section"]
-            staff_namelist = item["staff_namelist"]
+            section_namelist = item["section_namelist"]
             night_section = item["night_section"]
 
-            temp_work_count = {staff.name: staff.work_count for staff in staffs}
+            temp_staff_workcount_personal_schedules =  {staff.name: [staff.work_count, staff.personal_schedule] for staff in staffs}
+            new_monthly_schedules = deepcopy(self)
             complete_flag = False
-            schedules = []
             check_date = cal_begin
-            temp_matrix = self.copy_matrix()
             print(f"now solving {main_section}...", end="")
             for _ in range(100):
                 check_date = cal_begin
-                incomplete_flag = False
-                previous_staff = None
+                restart_flag = False
+                previous_staff_name = None
                 while check_date <= cal_end:
-                    staff, term, cal_limit = self.staff_picker(temp_matrix, check_date, previous_staff, staff_namelist)
-                    if staff is None:
-                        incomplete_flag = True
-                        break
-                    else:
-                        staff_term = [staff, term]
-                        schedules.append(staff_term)
-                        # termはschedule_pickerの進む日数=メインスタッフとして働く日数、staffが働くのはサブスタッフ日も含めて+1
-                        staff.work_count += term + 1
-                        if cal_limit:
+                    block_assignable_stafflist = self.block_assignable_stafflist(check_date, min_blockdate = 5)
+                    if block_assignable_stafflist is None:
+                        block_assignable_stafflist = self.block_assignable_stafflist(check_date, min_blockdate = 4)
+                        if block_assignable_stafflist is None:    
+                            restart_flag = True
                             break
-                        else:
-                            check_date += datetime.timedelta(days = term)
-                            previous_staff = staff
-                if incomplete_flag:
+                    name, available_days, work_count = list(sorted(block_assignable_stafflist, key=itemgetter(2)))[0] if list(sorted(block_assignable_stafflist, key=itemgetter(2)))[0][0] != previous_staff_name else list(sorted(block_assignable_stafflist, key=itemgetter(2)))[1]
+                    staff = get_staff_by_name(name)
+                    assign_block = min(5, available_days)
+                    if check_date + datetime.timedelta(days = assign_block) > cal_end:
+                        assign_block = (cal_end - check_date).days
+                        complete_flag = True
+                    for _ in range(0, assign_block + 1):
+                        if _ == 0:
+                            new_monthly_schedules.assign(check_date, Time.day, sub_section, name)
+                        elif _ <= assign_block:
+                            new_monthly_schedules.assign(check_date + datetime.timedelta(days = _), Time.day, main_section, name)
+                        if _ == assign_block:
+                            new_monthly_schedules.assign(check_date + datetime.timedelta(days = _), Time.night, night_section, name)
+                    previous_staff_name = name
+                    # staffはassign_block日分の勤務割り当てがあるが、main_section割り当て進行度は1日分少ないのでdatetime.timedelta(days = assign_block - 1)
+                    check_date += datetime.timedelta(days = assign_block - 1)
+                    if complete_flag:
+                        break
+                if restart_flag:
+                    # staff毎にwork_countとpersonal_schedulesをリセット
                     for staff in staffs:
-                        staff.work_count = temp_work_count[staff.name]
-                    schedules = []
-                    temp_matrix = self.copy_matrix()
+                        staff.work_count, staff.personal_schedule = temp_staff_workcount_personal_schedules[staff.name]
+                    new_monthly_schedules = deepcopy(self)
                     if _ == 99:
                         print("...cannot solved")
                 else:
+                    print("...solved")
                     break
-            if schedules:
-                check_date = cal_begin
-                for staff in staffs:
-                    staff.work_count = temp_work_count[staff.name]
-                for staff_term in schedules:
-                    staff, term = staff_term
-                    for i in range(term + 1):
-                        assign_date = check_date + datetime.timedelta(days = i)
-                        if assign_date > cal_end:
-                            break
-                        # 初日をsub_sectionに
-                        if i == 0 and (temp_matrix.schedules[assign_date].staff_of[Time.day][sub_section] is None or temp_matrix.schedules[assign_date].staff_of[Time.day][sub_section] == []):
-                            temp_matrix.schedules[assign_date].assign(Time.day, sub_section, staff)
-                        # 続く数日をmain_sectionに
-                        if i > 0 and (temp_matrix.schedules[assign_date].staff_of[Time.day][main_section] is None or temp_matrix.schedules[assign_date].staff_of[Time.day][sub_section] == []):
-                            temp_matrix.schedules[assign_date].assign(Time.day, main_section, staff)
-                        # 最終日は夜勤に
-                        if i == term and temp_matrix.schedules[assign_date].staff_of[Time.night][night_section] is None:
-                            temp_matrix.schedules[assign_date].assign(Time.night, night_section, staff)
-                    check_date += datetime.timedelta(days = term)
-                self.schedules = temp_matrix.schedules
-                complete_flag = True
-                print(f"...assigned successfully")
+            if complete_flag:
+                self = new_monthly_schedules
         return complete_flag
+    
