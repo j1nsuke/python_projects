@@ -5,7 +5,7 @@ from enum import Enum
 from operator import attrgetter, itemgetter
 # カレンダーの用意
 cal_begin   = datetime.date(2024,7,1)
-cal_end     = datetime.date(2024,9,30)
+cal_end     = datetime.date(2024,7,30)
 target_cal  = [cal_begin + datetime.timedelta(days = i) for i in range (0, (cal_end - cal_begin).days + 1)]
 def is_weekday(date): # 週末＋祝日（2026年末分まで）を除外
     jpholidays = [
@@ -192,13 +192,9 @@ class Monthly_schedules:
         night_staff_not_conflicted = True if len(night_staffs + extra_staffs) == len(set(night_staffs + extra_staffs)) else False
         return all([staff_filled, day_staff_not_conflicted, night_staff_not_conflicted]) # 必須セクションが埋まっていること、日勤＋外勤に重複がないこと、夜勤＋外勤に重複がないこと
     def assignable_stafflist(self, date, time): # StaffではなくStaff.nameを返してるので注意
-        return {staff.name: staff.work_count for staff in staffs if staff.available(date, time)} if time in (Time.day, Time.night) else None
+        return [[staff.name, staff.work_count] for staff in staffs if staff.available(date, time)] if time in (Time.day, Time.night) else None
     def block_assignable_stafflist(self, date, min_blockdate):
-        block_assignable_stafflist = {}
-        for staff in staffs:
-            if staff.available_days(date) >= min_blockdate:
-                block_assignable_stafflist[staff.name] = [staff.available_days(date), staff.work_count]
-        return block_assignable_stafflist
+        return [[staff.name, staff.available_days(date), staff.work_count] for staff in staffs if staff.available_days(date) >= min_blockdate]
     def assign_30591(self): # 30591を割り当て  山本：火水木30591、日曜夜30596 浅田：その他平日30591
         for date in target_cal:
             if is_weekday(date) and date.weekday() in (1, 2, 3):
@@ -223,26 +219,31 @@ class Monthly_schedules:
             complete_flag = False
             check_date = cal_begin
             for _ in range(100):
-                print(f"\rnow solving {main_section}...{_+1}", end="")
+                print(f"\rnow solving {main_section}...{_+1}") # デバッグ用
                 check_date = cal_begin
                 restart_flag = False
                 previous_staff_name = None
                 while check_date <= cal_end:
-                    print(f"\rchecking {check_date}", end="")
-                    block_assignable_stafflist = {name: [available_days, work_count] for name, (available_days, work_count) in self.block_assignable_stafflist(check_date, min_blockdate = 5).items() if name in section_namelist}
-                    if not block_assignable_stafflist:
-                        block_assignable_stafflist = {name: [available_days, work_count] for name, (available_days, work_count) in self.block_assignable_stafflist(check_date, min_blockdate=4).items() if name in section_namelist}
+                    print(f"checking {check_date}", end="")
+                    if (cal_end - check_date).days <= 4:
+                        block_assignable_stafflist = [[name, available_days, work_count] for name, available_days, work_count in self.block_assignable_stafflist(check_date, min_blockdate = (cal_end - check_date).days + 1) if name in section_namelist and name != previous_staff_name]
+                    else: 
+                        block_assignable_stafflist = [[name, available_days, work_count] for name, available_days, work_count in self.block_assignable_stafflist(check_date, min_blockdate = 5) if name in section_namelist and name != previous_staff_name]
                         if not block_assignable_stafflist:
-                            if previous_staff_name == "Dummy":
-                                restart_flag = True
-                                break
-                            staff = dummy_staff
-                            new_monthly_schedules.schedules[check_date][Time.day][main_section] = "Dummy"
-                            previous_staff_name = "Dummy"
-                            check_date += datetime.timedelta(days = 1)
-                            continue
-                    sorted_stafflist = sorted(block_assignable_stafflist.items(), key=lambda x: x[1][1])
-                    name, (available_days, work_count) = sorted_stafflist[0] if sorted_stafflist[0][0] != previous_staff_name else sorted_stafflist[1]
+                            block_assignable_stafflist = [[name, available_days, work_count] for name, available_days, work_count in self.block_assignable_stafflist(check_date, min_blockdate = 4) if name in section_namelist and name != previous_staff_name]
+                            if not block_assignable_stafflist:
+                                if previous_staff_name == "Dummy":
+                                    restart_flag = True
+                                    break
+                                staff = dummy_staff
+                                new_monthly_schedules.schedules[check_date][Time.day][main_section] = "Dummy"
+                                previous_staff_name = "Dummy"
+                                check_date += datetime.timedelta(days = 1)
+                                continue
+                    sorted_stafflist = sorted(block_assignable_stafflist, key=itemgetter(2))[:3]
+                    for name, ad, wc in sorted_stafflist: # デバッグ用
+                        print(f"{name}", end="")
+                    name, available_days, wc = random.choice(sorted_stafflist)
                     staff = get_staff_by_name(name)
                     assign_block = min(5, available_days)
                     if check_date + datetime.timedelta(days = assign_block) > cal_end:
@@ -301,15 +302,17 @@ class Monthly_schedules:
                     # 既に割り振られてる場合はスキップ
                     if new_monthly_schedules.schedules[date][Time.night][section] is not None:
                         continue
-                    daily_staffnames = {name: work_count for name, work_count in new_monthly_schedules.assignable_stafflist(date, Time.night).items() if name in section_staff_namelist}
-                    if len(list(daily_staffnames.items())) > 0:
-                        daily_staffnames_less_work_count = sorted(daily_staffnames.items(), key=itemgetter(1))[:3]
+                    daily_staffnames = [[name, work_count] for name, work_count in new_monthly_schedules.assignable_stafflist(date, Time.night) if name in section_staff_namelist]
+                    if len(daily_staffnames) > 0:
+                        daily_staffnames_less_work_count = sorted(daily_staffnames, key=itemgetter(1))[:3]
                         name, work_count = random.choice(daily_staffnames_less_work_count)
                         new_monthly_schedules.assign(date, Time.night, section, name)
                     else:
-                        daily_help_staffnames = {name: work_count for name, work_count in new_monthly_schedules.assignable_stafflist(date, Time.night).items() if name in section_help_namelist}
-                        if len(list(daily_help_staffnames.items())) > 0:
-                            daily_help_staffnames_less_work_count = sorted(daily_staffnames.items(), key=itemgetter(1))[:3]
+                        daily_help_staffnames = [[name, work_count] for name, work_count in new_monthly_schedules.assignable_stafflist(date, Time.night) if name in section_help_namelist]
+                        print(f"\ndaily_help_staffnames: {daily_help_staffnames}")
+                        if len(daily_help_staffnames) > 0:
+                            daily_help_staffnames_less_work_count = sorted(daily_help_staffnames, key=itemgetter(1))[:3]
+                            print(f"daily_help_staffnames_less_work_count: {daily_help_staffnames_less_work_count}")
                             name, work_count = random.choice(daily_help_staffnames_less_work_count)
                             new_monthly_schedules.assign(date, Time.night, section, name)
                         else:
