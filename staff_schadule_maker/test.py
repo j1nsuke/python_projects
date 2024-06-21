@@ -5,7 +5,7 @@ from enum import Enum
 from operator import attrgetter, itemgetter
 # カレンダーの用意
 cal_begin   = datetime.date(2024,7,1)
-cal_end     = datetime.date(2024,7,30)
+cal_end     = datetime.date(2024,9,30)
 target_cal  = [cal_begin + datetime.timedelta(days = i) for i in range (0, (cal_end - cal_begin).days + 1)]
 def is_weekday(date): # 週末＋祝日（2026年末分まで）を除外
     jpholidays = [
@@ -30,9 +30,11 @@ class Section(Enum):
     s30599 = "30599"
     s30596 = "30596"
     s30597 = "30597"
-    sIfree = "Ifree"
+    sIsub1 = "Isub1"
+    sIsub2 = "Isub2"
     s30594 = '30594'
-    sEfree = "Efree"
+    sEsub1 = "Esub1"
+    sEsub2 = "Esub2"
 
     OFF    = "OFF"
     NG     = "NG"
@@ -45,7 +47,7 @@ class Section(Enum):
     chibat = "千葉徳"
     extras = "個人外勤"
 time_section = {
-        Time.day: (Section.s30591, Section.s30595, Section.s30599, Section.s30594, Section.sEfree, Section.s30596, Section.s30597, Section.sIfree),
+        Time.day: (Section.s30591, Section.s30595, Section.s30599, Section.s30594, Section.sEsub1, Section.sEsub2, Section.s30596, Section.s30597, Section.sIsub1, Section.sIsub2),
         Time.night: (Section.s30595, Section.s30599, Section.s30596),
         Time.extra: (Section.sonoda, Section.teikyo, Section.mitsui, Section.taitou, Section.oomori, Section.chibat, Section.extras)
 }
@@ -57,13 +59,10 @@ class Staff():
         self.ng_request = ng_request if ng_request is not None else []
         self.is_phd = is_phd
         self.work_count = 0
-        self.extra_work_count = 0
-        self.personal_schedule = {}
-        for date in target_cal:
-            self.personal_schedule[date] = {Time.day: Section.OFF, Time.night: Section.OFF}
-        for date in ng_request:
-            self.personal_schedule[date][Time.day] = Section.NG
-            self.personal_schedule[date][Time.night] = Section.NG
+        self.extra_count = 0
+        self.personal_schedule = {date: {Time.day: Section.OFF, Time.night: Section.OFF} for date in target_cal}
+        self.personal_schedule.update({date: {Time.day: Section.NG, Time.night: Section.NG} for date in ng_request})
+
     def available(self, date, time) -> bool:
         previous_date = date - datetime.timedelta(days = 1) if date != cal_begin else None
         next_date = date + datetime.timedelta(days = 1) if date != cal_end else None
@@ -132,11 +131,13 @@ class Monthly_schedules:
                         Section.s30591: None,
                         Section.s30595: None,
                         Section.s30599: None,
+                        Section.s30594: None,
+                        Section.sEsub1: None,
+                        Section.sEsub2: None,
                         Section.s30596: None,
                         Section.s30597: None,
-                        Section.sIfree: [],
-                        Section.s30594: None,
-                        Section.sEfree: []
+                        Section.sIsub1: None,
+                        Section.sIsub2: None,
             },
             Time.night  :{
                         Section.s30595: None,
@@ -160,18 +161,18 @@ class Monthly_schedules:
         if not check_isoff:
             print(f"cannot assign {name} on {date},{time},{section}")
             return None
-        if section in (Section.sEfree, Section.sIfree, Section.extras):
+        if section == Section.extras:
             self.schedules[date][time][section].append(name)
         else:
             self.schedules[date][time][section] = name
 
         if time == Time.extra:
             if section == Section.taitou:
-                staff.extra_work_count += 2
+                staff.extra_count += 2
                 staff.personal_schedule[date][Time.day] = section
                 staff.personal_schedule[date][Time.night] = section                
             else:
-                staff.extra_work_count += 1
+                staff.extra_count += 1
                 staff.personal_schedule[date][Time.day] = section            
         elif time == Time.day:
             staff.work_count += 1
@@ -183,9 +184,8 @@ class Monthly_schedules:
         staff_filled = all([self.schedules[date][Time.day][section] is not None for section in (Section.s30595, Section.s30599, Section.s30594, Section.s30596)] \
             + [self.schedules[date][Time.night][section] is not None for section in (Section.s30595, Section.s30599, Section.s30596)])
         
-        day_staffs = [self.schedules[date][Time.day][section] for section in (Section.s30591, Section.s30595, Section.s30599, Section.s30594, Section.s30596, Section.s30597) if not None]\
-                    + self.schedules[date][Time.day][Section.sIfree] + self.schedules[date][Time.day][Section.sEfree]
-        night_staffs = [self.schedules[date][Time.night][section] for section in (Section.s30595, Section.s30599, Section.s30596) if not None]
+        day_staffs = [self.schedules[date][Time.day][section] for section in time_section[Time.day] if not None]
+        night_staffs = [self.schedules[date][Time.night][section] for section in time_section[Time.night] if not None]
         extra_staffs = [self.schedules[date][Time.extra][section] for section in (Section.sonoda, Section.teikyo, Section.mitsui, Section.taitou, Section.oomori, Section.chibat) if not None]\
                     + self.schedules[date][Time.extra][Section.extras]
         day_staff_not_conflicted = True if len(day_staffs + extra_staffs) == len(set(day_staffs + extra_staffs)) else False
@@ -206,7 +206,7 @@ class Monthly_schedules:
     def assign_icu_and_eicu(self):
         icu_item = [
             {"main_section": Section.s30596, "sub_section": Section.s30597, "section_namelist": ["中野", "有田", "堂園", "池上"], "night_section": Section.s30596},
-            {"main_section": Section.s30594, "sub_section": Section.sEfree, "section_namelist": ["佐藤悠", "木村", "佐藤一"], "night_section": Section.s30595}
+            {"main_section": Section.s30594, "sub_section": Section.sEsub1, "section_namelist": ["佐藤悠", "木村", "佐藤一"], "night_section": Section.s30595}
         ]
         for item in icu_item:
             main_section = item["main_section"]
@@ -224,7 +224,6 @@ class Monthly_schedules:
                 restart_flag = False
                 previous_staff_name = None
                 while check_date <= cal_end:
-                    print(f"checking {check_date}", end="")
                     if (cal_end - check_date).days <= 4:
                         block_assignable_stafflist = [[name, available_days, work_count] for name, available_days, work_count in self.block_assignable_stafflist(check_date, min_blockdate = (cal_end - check_date).days + 1) if name in section_namelist and name != previous_staff_name]
                     else: 
@@ -241,8 +240,6 @@ class Monthly_schedules:
                                 check_date += datetime.timedelta(days = 1)
                                 continue
                     sorted_stafflist = sorted(block_assignable_stafflist, key=itemgetter(2))[:3]
-                    for name, ad, wc in sorted_stafflist: # デバッグ用
-                        print(f"{name}", end="")
                     name, available_days, wc = random.choice(sorted_stafflist)
                     staff = get_staff_by_name(name)
                     assign_block = min(5, available_days)
@@ -278,7 +275,6 @@ class Monthly_schedules:
             if complete_flag:
                 self.schedules = new_monthly_schedules.schedules
         return complete_flag
-    
     def assign_nightshifts(self):
         temp_staff_workcount_personal_schedules =  {staff.name: [deepcopy(staff.work_count), deepcopy(staff.personal_schedule)] for staff in staffs}
         for _ in range(100):
@@ -302,17 +298,15 @@ class Monthly_schedules:
                     # 既に割り振られてる場合はスキップ
                     if new_monthly_schedules.schedules[date][Time.night][section] is not None:
                         continue
-                    daily_staffnames = [[name, work_count] for name, work_count in new_monthly_schedules.assignable_stafflist(date, Time.night) if name in section_staff_namelist]
+                    daily_staffnames = [[name, work_count] for name, work_count in new_monthly_schedules.assignable_stafflist(date, Time.night) if name in section_staff_namelist and work_count < 67]
                     if len(daily_staffnames) > 0:
                         daily_staffnames_less_work_count = sorted(daily_staffnames, key=itemgetter(1))[:3]
                         name, work_count = random.choice(daily_staffnames_less_work_count)
                         new_monthly_schedules.assign(date, Time.night, section, name)
                     else:
-                        daily_help_staffnames = [[name, work_count] for name, work_count in new_monthly_schedules.assignable_stafflist(date, Time.night) if name in section_help_namelist]
-                        print(f"\ndaily_help_staffnames: {daily_help_staffnames}")
+                        daily_help_staffnames = [[name, work_count] for name, work_count in new_monthly_schedules.assignable_stafflist(date, Time.night) if name in section_help_namelist and work_count < 67]
                         if len(daily_help_staffnames) > 0:
                             daily_help_staffnames_less_work_count = sorted(daily_help_staffnames, key=itemgetter(1))[:3]
-                            print(f"daily_help_staffnames_less_work_count: {daily_help_staffnames_less_work_count}")
                             name, work_count = random.choice(daily_help_staffnames_less_work_count)
                             new_monthly_schedules.assign(date, Time.night, section, name)
                         else:
@@ -331,61 +325,161 @@ class Monthly_schedules:
                 print(f"...solved")
                 break
         return not incomplete_flag
-
+    def assign_extra_shifts(self):
+        temp_staff_workcount_personal_schedules =  {staff.name: deepcopy(staff.personal_schedule) for staff in staffs}
+        for _ in range(100):
+            print(f"\rnow solving extra_shift...{_+1}", end="")
+            new_monthly_schedules = deepcopy(self)
+            incomplete_flag = False
+            for date in target_cal:
+                # 台東（土日、3-5年）に川田、川上、野田、松山、諏江、池上、堂園、佐藤一
+                if date.weekday() in (5, 6):
+                    staff_namelist = [[staff.name, staff.extra_count] for staff in staffs if staff.name in ("河田", "川上", "野田", "松山", "諏江", "池上", "堂園", "佐藤一") and staff.available_days(date) >= 1]
+                    if len(staff_namelist) > 0:
+                        staff_namelist_pick4 = sorted(staff_namelist, key=itemgetter(1))[:4]
+                        name, w_c = random.choice(staff_namelist_pick4)
+                        new_monthly_schedules.assign(date, Time.extra, Section.taitou, name)
+                    else:
+                        incomplete_flag = True
+                        break
+                # 千葉徳、大盛り、苑田、帝京はループ処理
+                extra_item_list = [
+                    ## 千葉徳（月、3-5年）に川田、川上、野田、松山、諏江、池上、堂園、佐藤一
+                    {"hospital": Section.chibat, "weekday": (0,), "staffs": ("河田", "川上", "野田", "松山", "諏江", "池上", "堂園", "佐藤一")},
+                    ## 大森（月火木、6-8年）に木村、有田、中野、佐藤悠、高井、佐藤拓
+                    {"hospital": Section.oomori, "weekday": (0, 1, 3), "staffs": ("木村", "有田", "中野", "佐藤悠", "高井", "佐藤拓")},
+                    ## 苑田（火木、3-4年）に川田、川上、野田、松山、諏江、池上
+                    {"hospital": Section.sonoda, "weekday": (1, 3), "staffs": ("河田", "川上", "野田", "松山", "諏江", "池上")},
+                    ## 帝京（月金、5-8年）に堂園、佐藤一、木村、有田、中野、佐藤悠
+                    {"hospital": Section.teikyo, "weekday": (0, 4), "staffs": ("堂園", "佐藤一", "木村", "有田", "中野", "佐藤悠")}
+                ]
+                for item in extra_item_list:
+                    if date.weekday() in item["weekday"]:
+                        staff_namelist = [[staff.name, staff.extra_count] for staff in staffs if staff.name in item["staffs"] and staff.available(date, Time.day)]
+                        if len(staff_namelist) > 0:
+                            staff_namelist_pick2 = sorted(staff_namelist, key=itemgetter(1))[:2]
+                            name, w_c = random.choice(staff_namelist_pick2)
+                            new_monthly_schedules.assign(date, Time.extra, item["hospital"], name)
+                        else:
+                            incomplete_flag = True
+                            break
+                # 三井（水金）に水＝堀江、金＝山本、あと高井をランダム
+                if date.weekday() == 2:
+                    staff = get_staff_by_name("堀江")
+                    if not staff.available(date, Time.day):
+                        staff = get_staff_by_name("高井")
+                        if not staff.available(date, Time.day):
+                            incomplete_flag = True
+                            break
+                    new_monthly_schedules.assign(date, Time.extra, Section.mitsui, staff.name)
+                if date.weekday() == 4:
+                    staff = get_staff_by_name("山本")
+                    if not staff.available(date, Time.day):
+                        staff = get_staff_by_name("高井")
+                        if not staff.available(date, Time.day):
+                            incomplete_flag = True
+                            break
+                    new_monthly_schedules.assign(date, Time.extra, Section.mitsui, staff.name)
+            if incomplete_flag == True:
+                for staff in staffs:
+                    staff.extra_count = 0
+                    staff.personal_schedule = temp_staff_workcount_personal_schedules[staff.name]
+                continue
+            else:
+                self.schedules = new_monthly_schedules.schedules
+                break
+        return not incomplete_flag
+    def assign_er(self):
+        temp_staff_workcount_personal_schedules =  {staff.name: [deepcopy(staff.work_count), deepcopy(staff.personal_schedule)] for staff in staffs}
+        for _ in range(100):
+            print(f"\rnow solving er_shift...{_+1}", end="")
+            new_monthly_schedules = deepcopy(self)
+            dummy_count = 0
+            for section in (Section.s30595, Section.s30599):
+                section_namelists = [staff.name for staff in staffs if staff.rank < 5] if section == Section.s30599 else [staff.name for staff in staffs if Section.s30595 in staff.certified_section and not staff.is_phd]
+                for date in target_cal:
+                    daily_staffnames = [[name, work_count] for name, work_count in new_monthly_schedules.assignable_stafflist(date, Time.day) if name in section_namelists and work_count < 67]
+                    if len(daily_staffnames) > 0:
+                        daily_staffnames_less_work_count = sorted(daily_staffnames, key=itemgetter(1))[:3]
+                        name, work_count = random.choice(daily_staffnames_less_work_count)
+                        new_monthly_schedules.assign(date, Time.day, section, name)
+                    else:
+                        help_staffnames = [[name, work_count] for name, work_count in new_monthly_schedules.assignable_stafflist(date, Time.day) if name in ("浅田", "水野", "山本") and work_count < 67]
+                        if section == Section.s30595 and len(help_staffnames) > 0:
+                            name, work_count = random.choice(help_staffnames)
+                            new_monthly_schedules.assign(date, Time.day, section, name)
+                        else:
+                            new_monthly_schedules.schedules[date][Time.day][section] = "Dummy"
+                            dummy_count += 1
+            if dummy_count > 5:
+                for staff in staffs:
+                    staff.work_count, staff.personal_schedule = temp_staff_workcount_personal_schedules[staff.name]
+                continue
+            else:
+                self.schedules = new_monthly_schedules.schedules
+                break
+        return dummy_count < 5
+    # def assign_sub_staffs(self):
+    # def assign_phd_staffs(self):
 
 def main():
-    monthly_schedules = Monthly_schedules()
-    monthly_schedules.assign_30591()
-    flag = monthly_schedules.assign_icu_and_eicu()    
-    flag = monthly_schedules.assign_nightshifts()
-    print("")
+    for i in range(10):
+        print(f">>> trial {i+1}")
+        for staff in staffs:
+            staff.work_count = 0
+            staff.extra_count = 0
+            staff.personal_schedule = {date: {Time.day: Section.OFF, Time.night: Section.OFF} for date in target_cal}
+            staff.personal_schedule.update({date: {Time.day: Section.NG, Time.night: Section.NG} for date in staff.ng_request})
+        monthly_schedules = Monthly_schedules()
+        monthly_schedules.assign_30591()
+        flag = monthly_schedules.assign_icu_and_eicu()
+        if not flag:
+            continue    
+        flag = monthly_schedules.assign_nightshifts()
+        if not flag:
+            continue
+        flag = monthly_schedules.assign_extra_shifts()
+        if not flag:
+            continue
+        flag = monthly_schedules.assign_er()
+        if flag:
+           break
+    print("\n===============generated schedules===============")
+    indexes = ["Date", "D_30591", "D_30595", "D_30599", "D_30594", "D_Esub1", "D_Esub2", "D_30596", "D_30597", "D_Isub1", "D_Isub2", "  | ", "N_30595", "N_30599", "N_30596", " || ", "苑田", "帝京", "三井", "大森", "台東", "千葉徳", " | ", "個人外勤"]
+    print("\t".join(indexes))
+    for date, schedule in monthly_schedules.schedules.items():
+        output = [f"{date.strftime('%m-%d')}"]
+        for section in time_section[Time.day]:
+            output.append(schedule[Time.day][section] if schedule[Time.day][section] else 'None')
+        output.append("  | ")
+        for section in time_section[Time.night]:
+            output.append(schedule[Time.night][section] if schedule[Time.night][section] else 'None')
+        output.append(" || ")
+        output.append(schedule[Time.extra][Section.sonoda] if schedule[Time.extra][Section.sonoda] else ' ')
+        output.append(schedule[Time.extra][Section.teikyo] if schedule[Time.extra][Section.teikyo] else ' ')
+        output.append(schedule[Time.extra][Section.mitsui] if schedule[Time.extra][Section.mitsui] else ' ')
+        output.append(schedule[Time.extra][Section.oomori] if schedule[Time.extra][Section.oomori] else ' ')
+        output.append(schedule[Time.extra][Section.taitou] if schedule[Time.extra][Section.taitou] else ' ')
+        output.append(schedule[Time.extra][Section.chibat] if schedule[Time.extra][Section.chibat] else ' ')
+        output.append("  | ")
+        # output.append(" ".join(schedule[Time.extra][Section.extras]) if schedule[Time.extra][Section.extras] else 'None')
+        print("\t".join(output)) # 一旦個人外勤は置いとこう
 
-    indexes = ["Date", "D_30591", "D_30595", "D_30599", "D_30594", "D_Efree", "D_30596", "D_30597", "D_Ifree", " ", "N_30595", "N_30599", "N_30596"]
-    print("\t".join(indexes))
-    print("")
-    for date, schedule in monthly_schedules.schedules.items():
-        output = [f"{date.strftime('%m-%d')}"]
-        output.append(schedule[Time.day][Section.s30591] if schedule[Time.day][Section.s30591] else 'None')
-        output.append(schedule[Time.day][Section.s30595] if schedule[Time.day][Section.s30595] else 'None')
-        output.append(schedule[Time.day][Section.s30599] if schedule[Time.day][Section.s30599] else 'None')
-        output.append(schedule[Time.day][Section.s30594] if schedule[Time.day][Section.s30594] else 'None')
-        output.append(" ".join(schedule[Time.day][Section.sEfree]) if schedule[Time.day][Section.sEfree] else 'None')
-        output.append(schedule[Time.day][Section.s30596] if schedule[Time.day][Section.s30596] else 'None')
-        output.append(schedule[Time.day][Section.s30597] if schedule[Time.day][Section.s30597] else 'None')
-        output.append(" ".join(schedule[Time.day][Section.sIfree]) if schedule[Time.day][Section.sIfree] else 'None')
-        output.append(" ")
-        output.append(schedule[Time.night][Section.s30595] if schedule[Time.night][Section.s30595] else 'None')
-        output.append(schedule[Time.night][Section.s30599] if schedule[Time.night][Section.s30599] else 'None')
-        output.append(schedule[Time.night][Section.s30596] if schedule[Time.night][Section.s30596] else 'None')
-        print("\t".join(output))
-    print("")
-    '''
-    indexes = ["Date", "苑田", "帝京", "三井", "大森", "台東", "千葉徳", "個人外勤"]
-    print("\t".join(indexes))
-    for date, schedule in monthly_schedules.schedules.items():
-        output = [f"{date.strftime('%m-%d')}"]
-        output.append(schedule[Time.extra][Section.sonoda] if schedule[Time.extra][Section.sonoda] else '\t')
-        output.append(schedule[Time.extra][Section.teikyo] if schedule[Time.extra][Section.teikyo] else '\t')
-        output.append(schedule[Time.extra][Section.mitsui] if schedule[Time.extra][Section.mitsui] else '\t')
-        output.append(schedule[Time.extra][Section.oomori] if schedule[Time.extra][Section.oomori] else '\t')
-        output.append(schedule[Time.extra][Section.taitou] if schedule[Time.extra][Section.taitou] else '\t')
-        output.append(schedule[Time.extra][Section.chibat] if schedule[Time.extra][Section.chibat] else '\t')
-        output.append(" ".join(schedule[Time.extra][Section.extras]) if schedule[Time.extra][Section.extras] else 'None')
-        print("\t".join(output))
-    '''
+    print("===============staff work stats===============")
     for staff in staffs:
-        print(f"{staff.name} works* {staff.work_count}", end="")
         actual_workcount = 0
+        actual_extracount = 0
         for date in target_cal:
-            for section in (Section.s30591, Section.s30595, Section.s30599, Section.s30594, Section.s30596, Section.s30597):
+            for section in time_section[Time.day]:
                 if monthly_schedules.schedules[date][Time.day][section] == staff.name:
                     actual_workcount += 1
-            for section in (Section.sIfree, Section.sEfree):
-                for listed_staff in monthly_schedules.schedules[date][Time.day][section]:
-                    if listed_staff == staff.name:
-                        actual_workcount += 1
-            for section in (Section.s30596, Section.s30595, Section.s30599):
+            for section in time_section[Time.night]:
                 if monthly_schedules.schedules[date][Time.night][section] == staff.name:
                     actual_workcount += 1.5
-        print(f"({actual_workcount}), extra={staff.extra_work_count}")
+            for section in time_section[Time.extra]:
+                if monthly_schedules.schedules[date][Time.extra][section] == staff.name:
+                    actual_extracount += 2 if section == Section.taitou else 1
+        print(f"{staff.name}", end="\t")
+        print(f"works* {staff.work_count}({actual_workcount})", end="\t")
+        print(f"extra_works* {staff.extra_count}({actual_extracount})")
 main()
