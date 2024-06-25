@@ -88,19 +88,19 @@ class Staff():
         return count
 
 def save_staff_states():
-    original_staff_states = {}
+    saved_staff_states = {}
     for staff in staffs:
         work_count = staff.work_count
         personal_schedule = {date: {Time.day: Section.OFF, Time.night: Section.OFF} for date in target_cal}
         for date, daily_section in staff.personal_schedule.items():
             for time, section in daily_section.items():
                 personal_schedule[date][time] = section
-        original_staff_states[staff.name] = [work_count, personal_schedule]
-    return original_staff_states
+        saved_staff_states[staff.name] = [work_count, personal_schedule]
+    return saved_staff_states
 
-def load_staff_states(original_staff_states)->None:
+def load_staff_states(saved_staff_states)->None:
     for staff in staffs:
-        staff.work_count, staff.personal_schedule = original_staff_states[staff.name]
+        staff.work_count, staff.personal_schedule = saved_staff_states[staff.name]
 
 # スタッフ名簿
 staffs = [
@@ -236,7 +236,7 @@ class Monthly_schedules:
             section_namelist = item["section_namelist"]
             night_section = item["night_section"]
 
-            original_staff_states =  save_staff_states()
+            saved_staff_states =  save_staff_states()
             new_monthly_schedules = deepcopy(self)
             complete_flag = False
             for _ in range(100):
@@ -284,7 +284,7 @@ class Monthly_schedules:
                     if complete_flag:
                         break
                 if restart_flag:
-                    load_staff_states(original_staff_states)
+                    load_staff_states(saved_staff_states)
                     new_monthly_schedules = deepcopy(self)
                     if _ == 99:
                         print("...cannot solved")
@@ -296,7 +296,7 @@ class Monthly_schedules:
         return complete_flag
 
     def assign_nightshifts(self):
-        original_staff_states = save_staff_states()
+        saved_staff_states = save_staff_states()
         section_namelists = {
             Section.s30595 : [staff.name for staff in staffs if Section.s30595 in staff.certified_section and not staff.is_phd],
             Section.s30596 : [staff.name for staff in staffs if Section.s30596 in staff.certified_section and not staff.is_phd],
@@ -307,10 +307,10 @@ class Monthly_schedules:
             Section.s30596 : ["浅田", "高井", "水野"],
             Section.s30599 : [staff.name for staff in staffs if staff.rank >= 5]
         }
-        for _ in range(100):
+        for _ in range(20):
             print(f"\rnow solving night_shift...{_+1}", end="")
             new_monthly_schedules = deepcopy(self)
-            load_staff_states(original_staff_states)
+            load_staff_states(saved_staff_states)
             incomplete_flag = False
             for section in (Section.s30596, Section.s30595, Section.s30599):    
                 for date in target_cal:
@@ -343,7 +343,7 @@ class Monthly_schedules:
         print("...failed")
         return False
     def assign_extra_shifts(self):
-        original_staff_states = save_staff_states()
+        saved_staff_states = save_staff_states()
         for _ in range(100):
             print(f"\rnow solving extra_shift...{_+1}", end="")
             new_monthly_schedules = deepcopy(self)
@@ -398,14 +398,14 @@ class Monthly_schedules:
                             break
                     new_monthly_schedules.assign(date, Time.extra, Section.mitsui, staff.name)
             if incomplete_flag == True:
-                load_staff_states(original_staff_states)
+                load_staff_states(saved_staff_states)
                 continue
             else:
                 self.schedules = new_monthly_schedules.schedules
                 break
         return not incomplete_flag
     def assign_er(self):
-        original_staff_states = save_staff_states()
+        saved_staff_states = save_staff_states()
         for _ in range(100):
             print(f"\rnow solving er_shift...{_+1}", end="")
             new_monthly_schedules = deepcopy(self)
@@ -427,7 +427,7 @@ class Monthly_schedules:
                             new_monthly_schedules.schedules[date][Time.day][section] = "Dummy"
                             dummy_count += 1
             if dummy_count > 5:
-                load_staff_states(original_staff_states)
+                load_staff_states(saved_staff_states)
                 continue
             else:
                 self.schedules = new_monthly_schedules.schedules
