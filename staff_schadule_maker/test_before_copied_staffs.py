@@ -87,8 +87,23 @@ class Staff():
                 break
         return count
 
+def save_staff_states():
+    original_staff_states = {}
+    for staff in staffs:
+        work_count = staff.work_count
+        personal_schedule = {date: {Time.day: Section.OFF, Time.night: Section.OFF} for date in target_cal}
+        for date, daily_section in staff.personal_schedule.items():
+            for time, section in daily_section.items():
+                personal_schedule[date][time] = section
+        original_staff_states[staff.name] = [work_count, personal_schedule]
+    return original_staff_states
+
+def load_staff_states(original_staff_states)->None:
+    for staff in staffs:
+        staff.work_count, staff.personal_schedule = original_staff_states[staff.name]
+
 # スタッフ名簿
-original_staffs = [
+staffs = [
     Staff("浅田",   rank=16,    ng_request = [datetime.date(2024,7,2),datetime.date(2024,7,7),datetime.date(2024,9,14)]+[date for date in target_cal if date.weekday() == 2]), #毎週水曜外勤
     Staff("山本",   rank=16,    ng_request =[datetime.date(2024,7,4),datetime.date(2024,8,24),]),
     Staff("和田",   rank=18,    certified_section = [Section.s30594, Section.s30595], ng_request =[datetime.date(2024,7,4),datetime.date(2024,7,10),datetime.date(2024,7,11),datetime.date(2024,7,13),datetime.date(2024,7,18),datetime.date(2024,7,19),datetime.date(2024,7,20),datetime.date(2024,7,21),datetime.date(2024,7,31)]+[date for date in target_cal if date.weekday() == 1]), #毎週火曜外勤
@@ -115,17 +130,17 @@ original_staffs = [
     # Staff("Ikeda",    rank= 5,    ng_request =[]),
 ]
 dummy_staff = Staff("Dummy", rank=10, certified_section = [Section.s30594, Section.s30595, Section.s30596], ng_request =[]),
-def print_ng_count(original_staffs):
+def print_ng_count(staffs):
     ng_counts = {}
     for date in target_cal:
         count = 0
-        for staff in original_staffs:
+        for staff in staffs:
             if date in staff.ng_request:
                 count += 1
         if count > 3:
             print(f"{date}, ng={count}")
         ng_counts[date] = count
-def get_staff_by_name(name, staffs= original_staffs):
+def get_staff_by_name(name):
     return next((staff for staff in staffs if staff.name == name), None)
 class Monthly_schedules:
     def __init__(self) -> None:
@@ -159,35 +174,8 @@ class Monthly_schedules:
                         Section.extras: []
             }}
             self.schedules[date] = daily_assigns
-    '''def assign(self, date, time, section, name):
+    def assign(self, date, time, section, name):
         staff = get_staff_by_name(name)
-        time_category = Time.night if time == Time.night else Time.day
-        check_isoff = (staff.personal_schedule[date][time_category] == Section.OFF)
-        if not check_isoff:
-            print(f"cannot assign {name} on {date},{time},{section}")
-            return None
-        if section == Section.extras:
-            self.schedules[date][time][section].append(name)
-        else:
-            self.schedules[date][time][section] = name
-
-        if time == Time.extra:
-            if section == Section.taitou:
-                staff.extra_count += 2
-                staff.personal_schedule[date][Time.day] = section
-                staff.personal_schedule[date][Time.night] = section                
-            else:
-                staff.extra_count += 1
-                staff.personal_schedule[date][Time.day] = section            
-        elif time == Time.day:
-            staff.work_count += 1
-            staff.personal_schedule[date][time] = section
-        elif time == Time.night:
-            staff.work_count += 1.5
-            staff.personal_schedule[date][time] = section
-    ''' 
-    def assign(self, date, time, section, name, any_staffs = original_staffs):
-        staff = next((staff for staff in any_staffs if staff.name == name), None)
         time_category = Time.night if time == Time.night else Time.day
         check_isoff = (staff.personal_schedule[date][time_category] == Section.OFF)
         if not check_isoff:
@@ -225,9 +213,9 @@ class Monthly_schedules:
         day_staff_not_conflicted = True if len(day_staffs + extra_staffs) == len(set(day_staffs + extra_staffs)) else False
         night_staff_not_conflicted = True if len(night_staffs + extra_staffs) == len(set(night_staffs + extra_staffs)) else False
         return all([staff_filled, day_staff_not_conflicted, night_staff_not_conflicted]) # 必須セクションが埋まっていること、日勤＋外勤に重複がないこと、夜勤＋外勤に重複がないこと
-    def assignable_stafflist(self, date, time, staffs = original_staffs):
+    def assignable_stafflist(self, date, time):
         return [[staff.name, staff.work_count] for staff in staffs if staff.available(date, time)] if time in (Time.day, Time.night) else None
-    def block_assignable_stafflist(self, date, min_blockdate, staffs = original_staffs):
+    def block_assignable_stafflist(self, date, min_blockdate):
         return [[staff.name, staff.available_days(date), staff.work_count] for staff in staffs if staff.available_days(date) >= min_blockdate]
     def assign_30591(self): # 30591を割り当て  山本：火水木30591、日曜夜30596 浅田：その他平日30591
         for date in target_cal:
@@ -238,7 +226,6 @@ class Monthly_schedules:
             elif date.weekday() == 6:
                 self.assign(date, Time.night, Section.s30596, "山本")
     def assign_icu_and_eicu(self):
-        global original_staffs
         icu_item = [
             {"main_section": Section.s30596, "sub_section": Section.s30597, "section_namelist": ["佐藤悠", "木村", "佐藤一"], "night_section": Section.s30596},
             {"main_section": Section.s30594, "sub_section": Section.sEsub1, "section_namelist": ["中野", "有田", "堂園", "池上"], "night_section": Section.s30595}
@@ -249,7 +236,7 @@ class Monthly_schedules:
             section_namelist = item["section_namelist"]
             night_section = item["night_section"]
 
-            copied_staffs = deepcopy(original_staffs)
+            original_staff_states =  save_staff_states()
             new_monthly_schedules = deepcopy(self)
             complete_flag = False
             for _ in range(100):
@@ -259,11 +246,11 @@ class Monthly_schedules:
                 previous_staff_name = None
                 while check_date <= cal_end:
                     if (cal_end - check_date).days <= 4:
-                        block_assignable_stafflist = [[name, available_days, work_count] for name, available_days, work_count in self.block_assignable_stafflist(check_date, min_blockdate = (cal_end - check_date).days + 1, staffs = copied_staffs) if name in section_namelist and name != previous_staff_name]
+                        block_assignable_stafflist = [[name, available_days, work_count] for name, available_days, work_count in self.block_assignable_stafflist(check_date, min_blockdate = (cal_end - check_date).days + 1) if name in section_namelist and name != previous_staff_name]
                     else: 
-                        block_assignable_stafflist = [[name, available_days, work_count] for name, available_days, work_count in self.block_assignable_stafflist(check_date, min_blockdate = 5, staffs = copied_staffs) if name in section_namelist and name != previous_staff_name]
+                        block_assignable_stafflist = [[name, available_days, work_count] for name, available_days, work_count in self.block_assignable_stafflist(check_date, min_blockdate = 5) if name in section_namelist and name != previous_staff_name]
                         if not block_assignable_stafflist:
-                            block_assignable_stafflist = [[name, available_days, work_count] for name, available_days, work_count in self.block_assignable_stafflist(check_date, min_blockdate = 4, staffs = copied_staffs) if name in section_namelist and name != previous_staff_name]
+                            block_assignable_stafflist = [[name, available_days, work_count] for name, available_days, work_count in self.block_assignable_stafflist(check_date, min_blockdate = 4) if name in section_namelist and name != previous_staff_name]
                             if not block_assignable_stafflist:
                                 if previous_staff_name == "Dummy":
                                     restart_flag = True
@@ -283,24 +270,21 @@ class Monthly_schedules:
                     for i in range(assign_block):
                         if i == 0:
                             if check_date == cal_begin:
-                                new_monthly_schedules.assign(check_date, Time.day, main_section, name, copied_staffs)
+                                new_monthly_schedules.assign(check_date, Time.day, main_section, name)
                             else:
-                                new_monthly_schedules.assign(check_date, Time.day, sub_section, name, copied_staffs)
+                                new_monthly_schedules.assign(check_date, Time.day, sub_section, name)
                         else:
-                            new_monthly_schedules.assign(check_date + datetime.timedelta(days = i), Time.day, main_section, name, copied_staffs)
+                            new_monthly_schedules.assign(check_date + datetime.timedelta(days = i), Time.day, main_section, name)
                         if i == assign_block - 1:
                             if new_monthly_schedules.schedules[check_date + datetime.timedelta(days = i)][Time.night][night_section] is None:
-                                if name == "池上":
-                                    new_monthly_schedules.assign(check_date + datetime.timedelta(days = i), Time.night, Section.s30599, name, copied_staffs)
-                                else:
-                                    new_monthly_schedules.assign(check_date + datetime.timedelta(days = i), Time.night, night_section, name, copied_staffs)
+                                new_monthly_schedules.assign(check_date + datetime.timedelta(days = i), Time.night, night_section, name)
                     previous_staff_name = name
                     # staffはassign_block日分の勤務割り当てがあるが、main_section割り当て進行度は1日分少ないのでdatetime.timedelta(days = assign_block - 1)
                     check_date += datetime.timedelta(days = assign_block - 1)
                     if complete_flag:
                         break
                 if restart_flag:
-                    copied_staffs = deepcopy(original_staffs)
+                    load_staff_states(original_staff_states)
                     new_monthly_schedules = deepcopy(self)
                     if _ == 99:
                         print("...cannot solved")
@@ -308,75 +292,11 @@ class Monthly_schedules:
                     print(f"...solved")
                     break
             if complete_flag:
-                original_staffs = copied_staffs
                 self.schedules = new_monthly_schedules.schedules
         return complete_flag
 
     def assign_nightshifts(self):
-        global original_staffs
-        section_namelists = {
-            Section.s30595 : [staff.name for staff in original_staffs if Section.s30595 in staff.certified_section and not staff.is_phd],
-            Section.s30596 : [staff.name for staff in original_staffs if Section.s30596 in staff.certified_section and not staff.is_phd],
-            Section.s30599 : [staff.name for staff in original_staffs if staff.rank < 5]
-        }
-        help_namelists = {
-            Section.s30595 : ["浅田", "高井", "水野", "佐藤拓", "田上"],
-            Section.s30596 : ["浅田", "高井", "水野"],
-            Section.s30599 : [staff.name for staff in original_staffs if staff.rank >= 5]
-        }
-        for _ in range(30):
-            print(f"\rnow solving night_shift...{_+1}", end="")
-            copied_staffs = deepcopy(original_staffs)
-            new_monthly_schedules = deepcopy(self)
-            incomplete_flag = False
-            for section in (Section.s30596, Section.s30595, Section.s30599):    
-                for date in target_cal:
-                    # 既に割り振られてる場合はスキップ
-                    if new_monthly_schedules.schedules[date][Time.night][section] is not None:
-                        continue
-                    if not is_weekday(date) and section in (Section.s30596, Section.s30595):
-                        primary_namelist = [staff.name for staff in copied_staffs if staff.is_phd and section in staff.certified_section]
-                        secondary_namelist = section_namelists[section] + ["浅田",]
-                    else:
-                        primary_namelist = section_namelists[section]
-                        secondary_namelist = help_namelists[section]
-                    daily_names = [[name, work_count] for name, work_count in new_monthly_schedules.assignable_stafflist(date, Time.night, staffs = copied_staffs) if name in primary_namelist]
-                    if len(daily_names) == 0:
-                            #####################################################################エラーログをしっかり出そう！#################################################################
-                        assignable = [name for name, wc in new_monthly_schedules.assignable_stafflist(date, Time.night, staffs= copied_staffs)]
-                        #print("")
-                        #print(f"{date} primary failed: assinable={assignable}", end="\t")
-                        #for staff in copied_staffs: #エラーログ
-                        #    if staff.name in primary_namelist:
-                        #        sec = staff.personal_schedule[date][Time.night]
-                        #        print(f"{staff.name} {sec}", end="/")
-                        daily_names = [[name, work_count] for name, work_count in new_monthly_schedules.assignable_stafflist(date, Time.night, staffs = copied_staffs) if name in secondary_namelist]
-                        if len(daily_names) == 0:
-                            print(f"{date} secondary failed", end="\t")
-                            for staff in copied_staffs:#　エラーログ
-                                if staff.name in secondary_namelist:
-                                    sec = staff.personal_schedule[date][Time.night]
-                                    print(f"{staff.name} {sec}", end="\t")
-                            print("")
-                            # new_monthly_schedules.assign_dummy(date, Time.night, section)
-                            incomplete_flag = True
-                            break
-                    min_count = sorted(daily_names, key=itemgetter(1))[0][1]
-                    min_count_daily_names = [name for name, work_count in daily_names if work_count == min_count]
-                    name = random.choice(min_count_daily_names)
-                    new_monthly_schedules.assign(date, Time.night, section, name, copied_staffs)
-                if incomplete_flag:
-                    break
-            if not incomplete_flag:
-                self.schedules = new_monthly_schedules.schedules
-                original_staffs = copied_staffs
-                print(f"...solved")
-                return True
-        print("...failed")
-        return False
-        
-    '''def assign_nightshifts(self):
-        original_staff_states =  {staff.name: [deepcopy(staff.work_count), deepcopy(staff.personal_schedule)] for staff in staffs}
+        original_staff_states = save_staff_states()
         section_namelists = {
             Section.s30595 : [staff.name for staff in staffs if Section.s30595 in staff.certified_section and not staff.is_phd],
             Section.s30596 : [staff.name for staff in staffs if Section.s30596 in staff.certified_section and not staff.is_phd],
@@ -387,13 +307,10 @@ class Monthly_schedules:
             Section.s30596 : ["浅田", "高井", "水野"],
             Section.s30599 : [staff.name for staff in staffs if staff.rank >= 5]
         }
-        for _ in range(30):
+        for _ in range(100):
             print(f"\rnow solving night_shift...{_+1}", end="")
-            for name, (workcount, p_s) in original_staff_states.items():
-                print(f"{name}: {workcount}, 1stday-{p_s[cal_begin][Time.day]}-{p_s[cal_begin][Time.night]}", end="/ ")
             new_monthly_schedules = deepcopy(self)
-            for staff in staffs:
-                staff.work_count, staff.personal_schedule = original_staff_states[staff.name]
+            load_staff_states(original_staff_states)
             incomplete_flag = False
             for section in (Section.s30596, Section.s30595, Section.s30599):    
                 for date in target_cal:
@@ -408,23 +325,9 @@ class Monthly_schedules:
                         secondary_namelist = help_namelists[section]
                     daily_names = [[name, work_count] for name, work_count in new_monthly_schedules.assignable_stafflist(date, Time.night) if name in primary_namelist]
                     if len(daily_names) == 0:
-                            #####################################################################エラーログをしっかり出そう！#################################################################
-                        assignable = [name for name, wc in new_monthly_schedules.assignable_stafflist(date, Time.night)]
-                        print("")
-                        print(f"{date} primary failed: assinable={assignable}", end="\t")
-                        for staff in staffs: #エラーログ
-                            if staff.name in primary_namelist:
-                                sec = staff.personal_schedule[date][Time.night]
-                                print(f"{staff.name} {sec}", end="/")
                         daily_names = [[name, work_count] for name, work_count in new_monthly_schedules.assignable_stafflist(date, Time.night) if name in secondary_namelist]
                         if len(daily_names) == 0:
-                            print(f"{date} secondary failed", end="\t")
-                            for staff in staffs:#　エラーログ
-                                if staff.name in secondary_namelist:
-                                    sec = staff.personal_schedule[date][Time.night]
-                                    print(f"{staff.name} {sec}", end="\t")
-                            print("")
-                            # new_monthly_schedules.assign_dummy(date, Time.night, section)
+                            print(f"failed to assign {section} on {date}")
                             incomplete_flag = True
                             break
                     min_count = sorted(daily_names, key=itemgetter(1))[0][1]
@@ -439,69 +342,20 @@ class Monthly_schedules:
                 return True
         print("...failed")
         return False
-        '''
-    '''def assign_nightshifts(self):
-        original_staff_states =  {staff.name: [deepcopy(staff.work_count), deepcopy(staff.personal_schedule)] for staff in staffs}
-        section_staff_namelists = {
-            Section.s30595 : [staff.name for staff in staffs if Section.s30595 in staff.certified_section and not staff.is_phd],
-            Section.s30596 : [staff.name for staff in staffs if Section.s30596 in staff.certified_section and not staff.is_phd],
-            Section.s30599 : [staff.name for staff in staffs if staff.rank < 5]
-        }
-        section_help_namelists = {
-            Section.s30595 : ["浅田", "高井", "水野", "佐藤拓", "田上"],
-            Section.s30596 : ["浅田", "高井", "水野"],
-            Section.s30599 : [staff.name for staff in staffs if staff.rank >= 5]
-        }
-        for _ in range(100):
-            print(f"\rnow solving night_shift...{_+1}", end="")
-            new_monthly_schedules = deepcopy(self)
-            for staff in staffs:
-                    staff.work_count, staff.personal_schedule = original_staff_states[staff.name]
-            incomplete_flag = False
-            for section in (Section.s30596, Section.s30595, Section.s30599):
-                for date in target_cal:
-                    # 既に割り振られてる場合はスキップ
-                    if new_monthly_schedules.schedules[date][Time.night][section] is not None:
-                        continue
-                    daily_staffnames = [[name, work_count] for name, work_count in new_monthly_schedules.assignable_stafflist(date, Time.night) if name in section_staff_namelists[section] and work_count < 67]
-                    if len(daily_staffnames) > 0:
-                        daily_staffnames_less_work_count = sorted(daily_staffnames, key=itemgetter(1))[:3]
-                        name, work_count = random.choice(daily_staffnames_less_work_count)
-                        new_monthly_schedules.assign(date, Time.night, section, name)
-                    else:
-                        daily_help_staffnames = [[name, work_count] for name, work_count in new_monthly_schedules.assignable_stafflist(date, Time.night) if name in section_help_namelists[section] and work_count < 67]
-                        if len(daily_help_staffnames) > 0:
-                            daily_help_staffnames_less_work_count = sorted(daily_help_staffnames, key=itemgetter(1))[:3]
-                            name, work_count = random.choice(daily_help_staffnames_less_work_count)
-                            new_monthly_schedules.assign(date, Time.night, section, name)
-                        else:
-                            print(f"\tfailed on {date} for {section}")
-                            new_monthly_schedules.assign_dummy(date, Time.night, section)
-                            # incomplete_flag = True
-                            # break
-                if incomplete_flag:
-                    break
-            if not incomplete_flag:
-                self.schedules = new_monthly_schedules.schedules
-                print(f"...solved")
-                return True
-        print("...failed")
-        return False'''
     def assign_extra_shifts(self):
-        global original_staffs
+        original_staff_states = save_staff_states()
         for _ in range(100):
             print(f"\rnow solving extra_shift...{_+1}", end="")
-            copied_staffs = deepcopy(original_staffs)
             new_monthly_schedules = deepcopy(self)
             incomplete_flag = False
             for date in target_cal:
                 # 台東（土日、3-5年）に川田、川上、野田、松山、諏江、池上、堂園、佐藤一
                 if date.weekday() in (5, 6):
-                    staff_namelist = [[staff.name, staff.extra_count] for staff in copied_staffs if staff.name in ("河田", "川上", "野田", "松山", "諏江", "池上", "堂園", "佐藤一") and staff.available_days(date) >= 1]
+                    staff_namelist = [[staff.name, staff.extra_count] for staff in staffs if staff.name in ("河田", "川上", "野田", "松山", "諏江", "池上", "堂園", "佐藤一") and staff.available_days(date) >= 1]
                     if len(staff_namelist) > 0:
                         staff_namelist_pick4 = sorted(staff_namelist, key=itemgetter(1))[:4]
                         name, w_c = random.choice(staff_namelist_pick4)
-                        new_monthly_schedules.assign(date, Time.extra, Section.taitou, name, copied_staffs)
+                        new_monthly_schedules.assign(date, Time.extra, Section.taitou, name)
                     else:
                         incomplete_flag = True
                         break
@@ -518,65 +372,64 @@ class Monthly_schedules:
                 ]
                 for item in extra_item_list:
                     if date.weekday() in item["weekday"]:
-                        staff_namelist = [[staff.name, staff.extra_count] for staff in copied_staffs if staff.name in item["staffs"] and staff.available(date, Time.day)]
+                        staff_namelist = [[staff.name, staff.extra_count] for staff in staffs if staff.name in item["staffs"] and staff.available(date, Time.day)]
                         if len(staff_namelist) > 0:
                             staff_namelist_pick2 = sorted(staff_namelist, key=itemgetter(1))[:2]
                             name, w_c = random.choice(staff_namelist_pick2)
-                            new_monthly_schedules.assign(date, Time.extra, item["hospital"], name, copied_staffs)
+                            new_monthly_schedules.assign(date, Time.extra, item["hospital"], name)
                         else:
                             incomplete_flag = True
                             break
                 # 三井（水金）に水＝堀江、金＝山本、あと高井をランダム
                 if date.weekday() == 2:
-                    staff = get_staff_by_name("堀江", copied_staffs)
+                    staff = get_staff_by_name("堀江")
                     if not staff.available(date, Time.day):
-                        staff = get_staff_by_name("高井", copied_staffs)
+                        staff = get_staff_by_name("高井")
                         if not staff.available(date, Time.day):
                             incomplete_flag = True
                             break
-                    new_monthly_schedules.assign(date, Time.extra, Section.mitsui, staff.name, copied_staffs)
+                    new_monthly_schedules.assign(date, Time.extra, Section.mitsui, staff.name)
                 if date.weekday() == 4:
-                    staff = get_staff_by_name("山本", copied_staffs)
+                    staff = get_staff_by_name("山本")
                     if not staff.available(date, Time.day):
-                        staff = get_staff_by_name("高井", copied_staffs)
+                        staff = get_staff_by_name("高井")
                         if not staff.available(date, Time.day):
                             incomplete_flag = True
                             break
-                    new_monthly_schedules.assign(date, Time.extra, Section.mitsui, staff.name, copied_staffs)
+                    new_monthly_schedules.assign(date, Time.extra, Section.mitsui, staff.name)
             if incomplete_flag == True:
+                load_staff_states(original_staff_states)
                 continue
             else:
-                original_staffs = copied_staffs
                 self.schedules = new_monthly_schedules.schedules
                 break
         return not incomplete_flag
     def assign_er(self):
-        global original_staffs
+        original_staff_states = save_staff_states()
         for _ in range(100):
             print(f"\rnow solving er_shift...{_+1}", end="")
-            copied_staffs = deepcopy(original_staffs)
             new_monthly_schedules = deepcopy(self)
             dummy_count = 0
             for section in (Section.s30595, Section.s30599):
-                section_namelists = [staff.name for staff in copied_staffs if staff.rank < 5] if section == Section.s30599 else [staff.name for staff in copied_staffs if Section.s30595 in staff.certified_section and not staff.is_phd]
+                section_namelists = [staff.name for staff in staffs if staff.rank < 5] if section == Section.s30599 else [staff.name for staff in staffs if Section.s30595 in staff.certified_section and not staff.is_phd]
                 for date in target_cal:
-                    daily_staffnames = [[name, work_count] for name, work_count in new_monthly_schedules.assignable_stafflist(date, Time.day, copied_staffs) if name in section_namelists and work_count < 67]
+                    daily_staffnames = [[name, work_count] for name, work_count in new_monthly_schedules.assignable_stafflist(date, Time.day) if name in section_namelists and work_count < 67]
                     if len(daily_staffnames) > 0:
                         daily_staffnames_less_work_count = sorted(daily_staffnames, key=itemgetter(1))[:3]
                         name, work_count = random.choice(daily_staffnames_less_work_count)
-                        new_monthly_schedules.assign(date, Time.day, section, name, copied_staffs)
+                        new_monthly_schedules.assign(date, Time.day, section, name)
                     else:
-                        help_staffnames = [[name, work_count] for name, work_count in new_monthly_schedules.assignable_stafflist(date, Time.day, copied_staffs) if name in ("浅田", "水野", "山本") and work_count < 67]
+                        help_staffnames = [[name, work_count] for name, work_count in new_monthly_schedules.assignable_stafflist(date, Time.day) if name in ("浅田", "水野", "山本") and work_count < 67]
                         if section == Section.s30595 and len(help_staffnames) > 0:
                             name, work_count = random.choice(help_staffnames)
-                            new_monthly_schedules.assign(date, Time.day, section, name, copied_staffs)
+                            new_monthly_schedules.assign(date, Time.day, section, name)
                         else:
                             new_monthly_schedules.schedules[date][Time.day][section] = "Dummy"
                             dummy_count += 1
             if dummy_count > 5:
+                load_staff_states(original_staff_states)
                 continue
             else:
-                original_staffs = copied_staffs
                 self.schedules = new_monthly_schedules.schedules
                 break
         return dummy_count < 5
@@ -584,13 +437,13 @@ class Monthly_schedules:
     # def assign_phd_staffs(self):
 
 def main():
-    print_ng_count(original_staffs)
-    for i in range(3):
+    print_ng_count(staffs)
+    for i in range(10):
         print(f">>> trial {i+1}")
-        for staff in original_staffs:
+        for staff in staffs:
             staff.work_count = 0
             staff.extra_count = 0
-            staff.personal_schedule.update({date: {Time.day: Section.OFF, Time.night: Section.OFF} for date in target_cal})
+            staff.personal_schedule = {date: {Time.day: Section.OFF, Time.night: Section.OFF} for date in target_cal}
             staff.personal_schedule.update({date: {Time.day: Section.NG, Time.night: Section.NG} for date in staff.ng_request})
         monthly_schedules = Monthly_schedules()
         monthly_schedules.assign_30591()
@@ -628,7 +481,7 @@ def main():
         print("\t".join(output)) # 一旦個人外勤は置いとこう
 
     print("===============staff work stats===============")
-    for staff in original_staffs:
+    for staff in staffs:
         actual_workcount = 0
         actual_extracount = 0
         for date in target_cal:
