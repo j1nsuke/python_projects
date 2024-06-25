@@ -219,15 +219,14 @@ class Monthly_schedules:
             sub_section = item["sub_section"]
             section_namelist = item["section_namelist"]
             night_section = item["night_section"]
-            complete_flag = False
             for _ in range(30):
-                print(f"\rnow solving {main_section}...{_+1}", end="") # デバッグ用
+                print(f"\rASSIGN {"ICU" if main_section == Section.s30596 else "EICU"} {_+1}", end="") # デバッグ用
                 new_monthly_schedules = deepcopy(self)
                 saved_staff_states =  {staff.name: [deepcopy(staff.work_count), deepcopy(staff.personal_schedule)] for staff in staffs}
                 check_date = cal_begin
                 restart_flag = False
                 previous_staff_name = None
-                while check_date <= cal_end:
+                while check_date < cal_end:
                     if (cal_end - check_date).days <= 4:
                         block_assignable_stafflist = [[name, available_days, work_count] for name, available_days, work_count in self.block_assignable_stafflist(check_date, min_blockdate = (cal_end - check_date).days + 1) if name in section_namelist and name != previous_staff_name]
                     else: 
@@ -249,7 +248,6 @@ class Monthly_schedules:
                     assign_block = min(5, available_days)
                     if check_date + datetime.timedelta(days = assign_block) > cal_end:
                         assign_block = (cal_end - check_date).days + 1
-                        complete_flag = True
                     for i in range(assign_block):
                         if i == 0:
                             if check_date == cal_begin:
@@ -264,21 +262,18 @@ class Monthly_schedules:
                     previous_staff_name = name
                     # staffはassign_block日分の勤務割り当てがあるが、main_section割り当て進行度は1日分少ないのでdatetime.timedelta(days = assign_block - 1)
                     check_date += datetime.timedelta(days = assign_block - 1)
-                    if complete_flag:
-                        break
                 if restart_flag:
                     for staff in staffs:
                         staff.work_count, staff.personal_schedule = saved_staff_states[staff.name]
                     new_monthly_schedules = deepcopy(self)
-                    if _ == 29:
-                        return False
-                        print("...cannot solved")
                 else:
-                    print(f"...solved")
+                    self.schedules = new_monthly_schedules.schedules
+                    print(f"...DONE")
                     break
-            if complete_flag:
-                self.schedules = new_monthly_schedules.schedules
-        return complete_flag
+            if restart_flag:
+                print("...FAILED")
+                return False
+        return True
     def assign_nightshifts(self):
         section_namelists = {
             Section.s30595 : [staff.name for staff in staffs if Section.s30595 in staff.certified_section and not staff.is_phd],
@@ -291,16 +286,16 @@ class Monthly_schedules:
             Section.s30599 : [staff.name for staff in staffs if staff.rank >= 5]
         }
         for _ in range(30):
-            print(f"\rnow solving night_shift...{_+1}", end="")
+            print(f"\rASSIGN NIGHT {_+1}", end="")
             saved_staff_states =  {staff.name: [deepcopy(staff.work_count), deepcopy(staff.personal_schedule)] for staff in staffs}
             new_monthly_schedules = deepcopy(self)
-            incomplete_flag = False
+            restart_flag = False
             for section in (Section.s30596, Section.s30595, Section.s30599):    
                 for date in target_cal:
                     # 既に割り振られてる場合はスキップ
                     if new_monthly_schedules.schedules[date][Time.night][section] is not None:
                         continue
-                    # 祝日は院生を優先割当て
+                    # 祝日は院生優先
                     if not is_weekday(date) and section in (Section.s30596, Section.s30595):
                         primary_namelists = [staff.name for staff in staffs if staff.is_phd and section in staff.certified_section]
                         secondary_namelist = section_namelists[section] + ["浅田",]
@@ -311,78 +306,29 @@ class Monthly_schedules:
                     if len(daily_names) == 0:
                         daily_names = [[name, work_count] for name, work_count in new_monthly_schedules.assignable_stafflist(date, Time.night) if name in secondary_namelist]
                         if len(daily_names) == 0:
-                            print(f"\tfailed on {date} for {section}")
-                            incomplete_flag = True
+                            restart_flag = True
                             break
                     min_count = sorted(daily_names, key=itemgetter(1))[0][1]
                     min_count_daily_names = [name for name, work_count in daily_names if work_count == min_count]
                     name = random.choice(min_count_daily_names)
                     new_monthly_schedules.assign(date, Time.night, section, name)
-                if incomplete_flag:
+                if restart_flag:
                     break
-            if incomplete_flag:
+            if restart_flag:
                 for staff in staffs:
                     staff.work_count, staff.personal_schedule = saved_staff_states[staff.name]
             else:
                 self.schedules = new_monthly_schedules.schedules
-                print(f"...solved")
+                print(f"...DONE")
                 return True
-        print("...failed")
+        print("...FAILED")
         return False
-
-    '''def assign_nightshifts(self):
-        saved_staff_states =  {staff.name: [deepcopy(staff.work_count), deepcopy(staff.personal_schedule)] for staff in staffs}
-        section_staff_namelists = {
-            Section.s30595 : [staff.name for staff in staffs if Section.s30595 in staff.certified_section and not staff.is_phd],
-            Section.s30596 : [staff.name for staff in staffs if Section.s30596 in staff.certified_section and not staff.is_phd],
-            Section.s30599 : [staff.name for staff in staffs if staff.rank < 5]
-        }
-        section_help_namelists = {
-            Section.s30595 : ["浅田", "高井", "水野", "佐藤拓", "田上"],
-            Section.s30596 : ["浅田", "高井", "水野"],
-            Section.s30599 : [staff.name for staff in staffs if staff.rank >= 5]
-        }
-        for _ in range(100):
-            print(f"\rnow solving night_shift...{_+1}", end="")
-            new_monthly_schedules = deepcopy(self)
-            for staff in staffs:
-                    staff.work_count, staff.personal_schedule = saved_staff_states[staff.name]
-            incomplete_flag = False
-            for section in (Section.s30596, Section.s30595, Section.s30599):
-                for date in target_cal:
-                    # 既に割り振られてる場合はスキップ
-                    if new_monthly_schedules.schedules[date][Time.night][section] is not None:
-                        continue
-                    daily_staffnames = [[name, work_count] for name, work_count in new_monthly_schedules.assignable_stafflist(date, Time.night) if name in section_staff_namelists[section] and work_count < 67]
-                    if len(daily_staffnames) > 0:
-                        daily_staffnames_less_work_count = sorted(daily_staffnames, key=itemgetter(1))[:3]
-                        name, work_count = random.choice(daily_staffnames_less_work_count)
-                        new_monthly_schedules.assign(date, Time.night, section, name)
-                    else:
-                        daily_help_staffnames = [[name, work_count] for name, work_count in new_monthly_schedules.assignable_stafflist(date, Time.night) if name in section_help_namelists[section] and work_count < 67]
-                        if len(daily_help_staffnames) > 0:
-                            daily_help_staffnames_less_work_count = sorted(daily_help_staffnames, key=itemgetter(1))[:3]
-                            name, work_count = random.choice(daily_help_staffnames_less_work_count)
-                            new_monthly_schedules.assign(date, Time.night, section, name)
-                        else:
-                            print(f"\tfailed on {date} for {section}")
-                            new_monthly_schedules.assign_dummy(date, Time.night, section)
-                            # incomplete_flag = True
-                            # break
-                if incomplete_flag:
-                    break
-            if not incomplete_flag:
-                self.schedules = new_monthly_schedules.schedules
-                print(f"...solved")
-                return True
-        print("...failed")
-        return False'''
     def assign_extra_shifts(self):
-        for _ in range(100):
-            print(f"\rnow solving extra_shift...{_+1}", end="")
+        for _ in range(30):
+            print(f"\rASSIGN EXTRA {_+1}", end="")
             saved_staff_states =  {staff.name: deepcopy(staff.personal_schedule) for staff in staffs}
             new_monthly_schedules = deepcopy(self)
-            incomplete_flag = False
+            restart_flag = False
             for date in target_cal:
                 # 台東（土日、3-5年）に川田、川上、野田、松山、諏江、池上、堂園、佐藤一
                 if date.weekday() in (5, 6):
@@ -392,7 +338,7 @@ class Monthly_schedules:
                         name, w_c = random.choice(staff_namelist_pick4)
                         new_monthly_schedules.assign(date, Time.extra, Section.taitou, name)
                     else:
-                        incomplete_flag = True
+                        restart_flag = True
                         break
                 # 千葉徳、大盛り、苑田、帝京はループ処理
                 extra_item_list = [
@@ -413,7 +359,7 @@ class Monthly_schedules:
                             name, w_c = random.choice(staff_namelist_pick2)
                             new_monthly_schedules.assign(date, Time.extra, item["hospital"], name)
                         else:
-                            incomplete_flag = True
+                            restart_flag = True
                             break
                 # 三井（水金）に水＝堀江、金＝山本、あと高井をランダム
                 if date.weekday() == 2:
@@ -421,7 +367,7 @@ class Monthly_schedules:
                     if not staff.available(date, Time.day):
                         staff = get_staff_by_name("高井")
                         if not staff.available(date, Time.day):
-                            incomplete_flag = True
+                            restart_flag = True
                             break
                     new_monthly_schedules.assign(date, Time.extra, Section.mitsui, staff.name)
                 if date.weekday() == 4:
@@ -429,21 +375,23 @@ class Monthly_schedules:
                     if not staff.available(date, Time.day):
                         staff = get_staff_by_name("高井")
                         if not staff.available(date, Time.day):
-                            incomplete_flag = True
+                            restart_flag = True
                             break
                     new_monthly_schedules.assign(date, Time.extra, Section.mitsui, staff.name)
-            if incomplete_flag == True:
+            if restart_flag == True:
                 for staff in staffs:
                     staff.extra_count = 0
                     staff.personal_schedule = saved_staff_states[staff.name]
                 continue
             else:
                 self.schedules = new_monthly_schedules.schedules
-                break
-        return not incomplete_flag
+                print(f"...DONE")
+                return True
+        print(f"...FAILED")
+        return False
     def assign_er(self):
-        for _ in range(100):
-            print(f"\rnow solving er_shift...{_+1}", end="")
+        for _ in range(30):
+            print(f"\rASSIGN ER {_+1}", end="")
             saved_staff_states =  {staff.name: [deepcopy(staff.work_count), deepcopy(staff.personal_schedule)] for staff in staffs}
             new_monthly_schedules = deepcopy(self)
             dummy_count = 0
@@ -469,8 +417,10 @@ class Monthly_schedules:
                 continue
             else:
                 self.schedules = new_monthly_schedules.schedules
-                break
-        return dummy_count < 5
+                print(f"...DONE")
+                return True
+        print(f"...FAILED")
+        return False
     # def assign_sub_staffs(self):
     # def assign_phd_staffs(self):
 
