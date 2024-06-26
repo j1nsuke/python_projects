@@ -91,7 +91,7 @@ staffs = [
     Staff("浅田",   rank=16,    ng_request = [datetime.date(2024,7,2),datetime.date(2024,7,7),datetime.date(2024,9,14)] + [date for date in target_cal if date.weekday() == 2]), #毎週水曜外勤
     Staff("山本",   rank=16,    ng_request =[datetime.date(2024,7,4),datetime.date(2024,8,24),]),
     Staff("和田",   rank=18,    certified_section = [Section.s30594, Section.s30595], ng_request =[datetime.date(2024,7,4),datetime.date(2024,7,10),datetime.date(2024,7,11),datetime.date(2024,7,13),datetime.date(2024,7,18),datetime.date(2024,7,19),datetime.date(2024,7,20),datetime.date(2024,7,21),datetime.date(2024,7,31)]+[date for date in target_cal if date.weekday() == 1]), #毎週火曜外勤
-    Staff("堀江",   rank=17,    certified_section = [Section.s30594, Section.s30595], ng_request =[datetime.date(2024,7,7),datetime.date(2024,7,13),datetime.date(2024,8,11)] + [date for date in target_cal if date.weekday() == 2]),#毎週水曜外勤
+    Staff("堀江",   rank=17,    certified_section = [Section.s30594, Section.s30595], ng_request =[datetime.date(2024,7,7),datetime.date(2024,7,13),datetime.date(2024,8,11)]),
     Staff("佐藤拓", rank=12,    certified_section = [Section.s30594, Section.s30595], ng_request =[datetime.date(2024,7,6),datetime.date(2024,7,15),datetime.date(2024,7,16),datetime.date(2024,8,20),]+[date for date in target_cal if date.weekday() == 4], is_phd = True),#毎週金曜外勤
     Staff("田上",   rank=12,    certified_section = [Section.s30594, Section.s30595], ng_request =[datetime.date(2024,8,25)]+[date for date in target_cal if date.weekday() in (1,4)], is_phd = True),
     Staff("高井",   rank=10,    certified_section = [Section.s30594, Section.s30595, Section.s30596], ng_request =[datetime.date(2024,8,16),datetime.date(2024,8,17),datetime.date(2024,8,18),datetime.date(2024,8,19),datetime.date(2024,8,20),datetime.date(2024,8,21),datetime.date(2024,7,27),datetime.date(2024,7,28),datetime.date(2024,8,24),datetime.date(2024,8,25),datetime.date(2024,9,28),datetime.date(2024,9,29),], is_phd = True),
@@ -387,9 +387,10 @@ class Monthly_schedules:
                             name = random.choice(staff_namelist)
                             new_monthly_schedules.assign(date, Time.extra, item["hospital"], name)
                         else:
-                            print(f"...FAILED {date} for {item["hospital"]}") 
+                            new_monthly_schedules.assign_dummy(date, Time.extra, item["hospital"])
+                            '''print(f"...FAILED {date} for {item["hospital"]}") 
                             restart_flag = True
-                            break
+                            break'''
                 if restart_flag:
                     break
                 # 三井（水金）に水＝堀江、金＝山本、あと高井をランダム
@@ -405,9 +406,10 @@ class Monthly_schedules:
                         else:
                             continue
                     if not assigned_flag:
-                        restart_flag = True
+                        new_monthly_schedules.assign_dummy(date, Time.extra, Section.mitsui)
+                        '''restart_flag = True
                         print(f"...FAILED {date} for 三井") 
-                        break
+                        break'''
             if restart_flag == True:
                 for staff in staffs:
                     staff.extra_count = 0
@@ -509,7 +511,7 @@ class Monthly_schedules:
 
 def main():
     print_ng_count(staffs)
-    for i in range(30):
+    for i in range(50):
         print(f">>> RUNNING ATTEMPT {i+1}")
         for staff in staffs:
             staff.work_count = 0
