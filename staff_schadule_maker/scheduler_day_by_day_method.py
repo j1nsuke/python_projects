@@ -199,10 +199,11 @@ class Monthly_schedules:
         day_staff_not_conflicted = True if len(day_staffs + extra_staffs) == len(set(day_staffs + extra_staffs)) else False
         night_staff_not_conflicted = True if len(night_staffs + extra_staffs) == len(set(night_staffs + extra_staffs)) else False
         return all([staff_filled, day_staff_not_conflicted, night_staff_not_conflicted]) # 必須セクションが埋まっていること、日勤＋外勤に重複がないこと、夜勤＋外勤に重複がないこと
-    def assignable_staffs(self, date, time):
+    def assignable_staffs(self, date, time): #[Staff, Staff, ...]
         return [staff for staff in staffs if staff.available(date, time)] if time in (Time.day, Time.night) else None
-    def block_assignable_stafflist(self, date, min_blockdate):
+    def block_assignable_stafflist(self, date, min_blockdate): #[[name, available_days, workcount], ...]
         return [[staff.name, staff.available_days(date), staff.work_count] for staff in staffs if staff.available_days(date) >= min_blockdate]
+    ##################################################################################################
     def assign_30591(self): # 30591を割り当て  山本：火水木30591、日曜夜30596 浅田：その他平日30591
         for date in target_cal:
             if is_weekday(date) and date.weekday() in (1, 2, 3):
@@ -211,7 +212,7 @@ class Monthly_schedules:
                 self.assign(date, Time.day, Section.s30591, "浅田")
             elif date.weekday() == 6:
                 self.assign(date, Time.night, Section.s30596, "山本")
-    def assign_icu_and_eicu(self):
+    def assign_icu_and_eicu(self): # 30594, Esub, 30596, 30597を3-5日ブロックで割り当て
         icu_itemsets = [
             {"main_staffs": ["佐藤悠", "木村", "佐藤一"],       "help_staffs":["中野", "堂園", "浅田"], "main_section": Section.s30596, "sub_section": Section.s30597, "night_section": Section.s30596},
             {"main_staffs": ["中野", "有田", "堂園", "池上"],   "help_staffs":["堀江", "和田", "水野"], "main_section": Section.s30594, "sub_section": Section.sEsub1, "night_section": Section.s30595}
@@ -238,9 +239,13 @@ class Monthly_schedules:
                         if dummy_flag: #1回目はスルー、2回目は下のフラグ立ってるから分岐
                             helpers = [staff for staff in new_monthly_schedules.assignable_staffs(check_date, Time.day) if staff.name in help_staffs]
                             if len(helpers) == 0:
-                                new_monthly_schedules.assign_dummy(check_date, Time.day, main_section) #help_staffsもいなければdummy
+                                print(f"\rASSIGN {"ICU" if main_section == Section.s30596 else "EICU"} {_+1} ...FAILED ON {check_date}", end="")
+                                restart_flag = True
+                                break
+                                #dummyに逃げるメソッドもある
+                                '''new_monthly_schedules.assign_dummy(check_date, Time.day, main_section) 
                                 check_date += datetime.timedelta(days= 1)
-                                continue
+                                continue'''
                             else:
                                 helper = random.choice(helpers)
                                 new_monthly_schedules.assign(check_date, Time.day, main_section, helper.name) #help_staffsがいればそれをassign。ただしフラグは戻さない。
@@ -285,13 +290,13 @@ class Monthly_schedules:
                 print("...FAILED")
                 return False
         return True
-    def assign_others(self):
+    def assign_day_night(self): # 30595, 30599, 夜勤, 外勤を日ごとに割り当て
         for date in target_cal:
             # 外勤→夜勤→日勤
             extra_list = []
             if is_weekday(date):
                 daily_day_staffs = self.assignable_staffs(date, Time.day) # [Staff,...]
-                extra_list = self.find_extra_shifts2(date, daily_day_staffs) # [[section, name],...]
+                extra_list = self.find_GAIKIN(date, daily_day_staffs) # [[section, name],...]
             
             night_list = []
             daily_night_staffs = [staff for staff in self.assignable_staffs(date, Time.night) if staff.name not in [sec_name[1] for sec_name in extra_list]]
@@ -310,7 +315,6 @@ class Monthly_schedules:
                     self.assign(date, Time.night, section, name) if name != "Dummy" else self.assign_dummy(date, Time.night, section)
             for section, name in er_list:
                 self.assign(date, Time.day, section, name) if name != "Dummy" else self.assign_dummy(date, Time.day, section)
-
 
     def find_nightstaffs(self, date, daily_night_staffs):
         main_staffs = {
@@ -354,7 +358,7 @@ class Monthly_schedules:
             return False
         else:
             return night_list
-    def find_extra_shifts2(self, date, daily_day_staffs):
+    def find_GAIKIN(self, date, daily_day_staffs):
         # 千葉徳、大盛り、苑田、帝京はループ処理
         extra_item_list = [
             ## 千葉徳（月、3-5年）に川田、川上、野田、松山、諏江、池上、堂園、佐藤一
@@ -403,7 +407,7 @@ class Monthly_schedules:
             er_list.append([Section.s30595, name])
         return er_list        
 
-    def assign_extra_shifts1(self):
+    def assign_taitou(self):
         for _ in range(20):
             print(f"\rASSIGN EXTRA {_+1}", end="")
             saved_staff_states =  {staff.name: deepcopy(staff.personal_schedule) for staff in staffs}
@@ -502,13 +506,13 @@ def main():
             staff.personal_schedule.update({date: {Time.day: Section.NG, Time.night: Section.NG} for date in staff.ng_request})
         monthly_schedules = Monthly_schedules()
         monthly_schedules.assign_30591()
-        flag = monthly_schedules.assign_extra_shifts1()
+        flag = monthly_schedules.assign_taitou()
         if not flag:
             continue
         flag = monthly_schedules.assign_icu_and_eicu()
         if not flag:
             continue
-        monthly_schedules.assign_others()
+        monthly_schedules.assign_day_night()
         '''flag = monthly_schedules.assign_nightshifts()
         if not flag:
             continue
@@ -516,7 +520,7 @@ def main():
         if not flag:
             continue
         monthly_schedules.swap_phd()
-        flag = monthly_schedules.assign_extra_shifts1()
+        flag = monthly_schedules.assign_taitou()
         if not flag:
             continue
         flag = monthly_schedules.assign_extra_shifts2()
