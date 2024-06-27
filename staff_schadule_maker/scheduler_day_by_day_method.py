@@ -212,6 +212,41 @@ class Monthly_schedules:
                 self.assign(date, Time.day, Section.s30591, "浅田")
             elif date.weekday() == 6:
                 self.assign(date, Time.night, Section.s30596, "山本")
+    def assign_taitou(self):
+        for _ in range(20):
+            print(f"\rASSIGN EXTRA {_+1}", end="")
+            saved_staff_states =  {staff.name: deepcopy(staff.personal_schedule) for staff in staffs}
+            new_monthly_schedules = deepcopy(self)
+            restart_flag = False
+            for date in target_cal:
+                # 台東(土日)、台東の月1縛りのため余計なギミックあり
+                if date == date.replace(day=1):
+                    monthly_taitou_box = ["河田", "川上", "野田", "松山", "諏江", "池上", "堂園", "佐藤一"]
+                    monthly_taitou_help = ["木村", "有田", "中野", "佐藤悠"]
+                if date.weekday() in (5, 6):
+                    staff_namelist = [[staff.name, staff.extra_count] for staff in staffs if staff.name in monthly_taitou_box and staff.available_days(date) >= 1]
+                    if len(staff_namelist) == 0:
+                        staff_namelist = [[staff.name, staff.extra_count] for staff in staffs if staff.name in monthly_taitou_help and staff.available_days(date) >= 1]
+                        if len(staff_namelist) == 0:
+                            print(f"...FAILED {date} for 台東")
+                            restart_flag = True
+                            break
+                    min_count = sorted(staff_namelist, key=itemgetter(1))[0][1]
+                    staff_namelist = [name for name, work_count in staff_namelist if work_count == min_count]
+                    name = random.choice(staff_namelist)
+                    new_monthly_schedules.assign(date, Time.extra, Section.taitou, name)
+                    monthly_taitou_box.remove(name) if name in monthly_taitou_box else monthly_taitou_help.remove(name)
+            if restart_flag == True:
+                for staff in staffs:
+                    staff.extra_count = 0
+                    staff.personal_schedule = saved_staff_states[staff.name]
+                continue
+            else:
+                self.schedules = new_monthly_schedules.schedules
+                print(f"...DONE")
+                return True
+        print(f"...FAILED")
+        return False
     def assign_icu_and_eicu(self): # 30594, Esub, 30596, 30597を3-5日ブロックで割り当て
         icu_itemsets = [
             {"main_staffs": ["佐藤悠", "木村", "佐藤一"],       "help_staffs":["中野", "堂園", "浅田"], "main_section": Section.s30596, "sub_section": Section.s30597, "night_section": Section.s30596},
@@ -315,7 +350,6 @@ class Monthly_schedules:
                     self.assign(date, Time.night, section, name) if name != "Dummy" else self.assign_dummy(date, Time.night, section)
             for section, name in er_list:
                 self.assign(date, Time.day, section, name) if name != "Dummy" else self.assign_dummy(date, Time.day, section)
-
     def find_nightstaffs(self, date, daily_night_staffs):
         main_staffs = {
             Section.s30596 : [staff.name for staff in staffs if Section.s30596 in staff.certified_section and not staff.is_phd],
@@ -405,42 +439,6 @@ class Monthly_schedules:
             name = random.choice(s30595_namelist)
             er_list.append([Section.s30595, name])
         return er_list        
-
-    def assign_taitou(self):
-        for _ in range(20):
-            print(f"\rASSIGN EXTRA {_+1}", end="")
-            saved_staff_states =  {staff.name: deepcopy(staff.personal_schedule) for staff in staffs}
-            new_monthly_schedules = deepcopy(self)
-            restart_flag = False
-            for date in target_cal:
-                # 台東(土日)、台東の月1縛りのため余計なギミックあり
-                if date == date.replace(day=1):
-                    monthly_taitou_box = ["河田", "川上", "野田", "松山", "諏江", "池上", "堂園", "佐藤一"]
-                    monthly_taitou_help = ["木村", "有田", "中野", "佐藤悠"]
-                if date.weekday() in (5, 6):
-                    staff_namelist = [[staff.name, staff.extra_count] for staff in staffs if staff.name in monthly_taitou_box and staff.available_days(date) >= 1]
-                    if len(staff_namelist) == 0:
-                        staff_namelist = [[staff.name, staff.extra_count] for staff in staffs if staff.name in monthly_taitou_help and staff.available_days(date) >= 1]
-                        if len(staff_namelist) == 0:
-                            print(f"...FAILED {date} for 台東")
-                            restart_flag = True
-                            break
-                    min_count = sorted(staff_namelist, key=itemgetter(1))[0][1]
-                    staff_namelist = [name for name, work_count in staff_namelist if work_count == min_count]
-                    name = random.choice(staff_namelist)
-                    new_monthly_schedules.assign(date, Time.extra, Section.taitou, name)
-                    monthly_taitou_box.remove(name) if name in monthly_taitou_box else monthly_taitou_help.remove(name)
-            if restart_flag == True:
-                for staff in staffs:
-                    staff.extra_count = 0
-                    staff.personal_schedule = saved_staff_states[staff.name]
-                continue
-            else:
-                self.schedules = new_monthly_schedules.schedules
-                print(f"...DONE")
-                return True
-        print(f"...FAILED")
-        return False
     ##################################################################################################
     def swap_GAIKIN_dummy(self):
         extra_item_list = {
@@ -459,11 +457,13 @@ class Monthly_schedules:
                     if date != cal_begin:
                         previous_night_staffnames = [self.schedules[date - datetime.timedelta(days = 1)][Time.night][section] for section in time_section[Time.night]]
                     swappable_staffnames = [name for name in stafflist if name in day_staffnames and name not in night_staffnames + previous_night_staffnames]
-                    if len(swappable_staffnames) > 0:
+                    if len(swappable_staffnames) == 0:
+                        print(f"DUMMY SWAP {date.strftime('%m-%d')}: NONE SWAPPABLE")
+                    else:
                         swap_staffname = random.choice(swappable_staffnames) # 交代できる人をみつけたら、personal_scheduleをOFFにしてwork_countも減らしてから割当て
                         swap_staff = get_staff_by_name(swap_staffname)
                         erased_section = swap_staff.personal_schedule[date][Time.day]
-                        print(f"DUMMY SWAP {date}: {swap_staffname} {erased_section} -> {section} AND ", end="")
+                        print(f"DUMMY SWAP {date.strftime('%m-%d')}: {swap_staffname} {erased_section} -> {section} AND ", end="")
                         swap_staff.personal_schedule[date][Time.day] = Section.OFF
                         swap_staff.work_count -= 1
                         self.assign(date, Time.extra, section, swap_staffname)
@@ -488,13 +488,12 @@ class Monthly_schedules:
                                     print(f"CANNOT FILL {erased_section}")
                             replace_staff = random.choice(replaceable_staffs)
                             self.assign(date, Time.day, erased_section, replace_staff.name)
-                            print(f"{replace_staff.name} OFF -> {erased_section}")
+                            print(f"{replace_staff.name} Section.OFF -> {erased_section}")
     def swap(self, phd_staff, work_limit, time: Time):
-        swap_count = 0
-        time_count = 1 if time == Time.day else 1.5
         while work_limit >= phd_staff.work_count:
+            time_count = 1 if time == Time.day else 1.5
+            sections = [Section.s30595, Section.s30594] if time == Time.day else [section for section in (Section.s30596, Section.s30595) if section in phd_staff.certified_section]
             assignable_date = [date for date in target_cal if phd_staff.available(date, time)]
-            sections = [section for section in (Section.s30596, Section.s30595) if section in phd_staff.certified_section]
             # phd_staffが勤務可能な日、セクションの夜勤にすでに入っているスタッフとそのwork_countを拾う
             candidate_list = []
             for section in sections:
@@ -514,7 +513,7 @@ class Monthly_schedules:
                     swapping_staff = get_staff_by_name(swapping_name)
                     candidate_list.append([date, section, swapping_staff, swapping_staff.work_count])
                 if len(candidate_list) == 0:
-                    print("NONE SWAPPABLE")
+                    print("NO MORE SWAPPABLE")
                     break
             candidate_list = sorted(candidate_list, key=itemgetter(3), reverse=True)
             date, section, candidate, candidate_wc = candidate_list[0]
@@ -522,28 +521,23 @@ class Monthly_schedules:
             candidate.work_count -= time_count
             candidate.personal_schedule[date][time] = Section.OFF
             self.assign(date, time, section, phd_staff.name)
-            swap_count += 1
-            print(f"\rswapped {phd_staff.name} {time} {swap_count} times...")
+            print(f"PhD SWAP {date.strftime('%m-%d')} {time}: {section} {candidate.name} -> {phd_staff.name}")
     def swap_phd(self):
         # 大学院2年目以降
         for name in ("高井", "佐藤拓", "田上"):
-            print("SWAP PhD...")
             phd_staff = get_staff_by_name(name)
             work_limit = round((cal_end - cal_begin).days / 7) * 1.5
             self.swap(phd_staff, work_limit, Time.night)
             if work_limit > phd_staff.work_count:
                 self.swap(phd_staff, work_limit, Time.day)
         # 大学院1年目
-        name = "水野"
-        phd_staff = get_staff_by_name(name)
-        work_limit = round((cal_end - cal_begin).days / 7) * 1.5
-        self.swap(phd_staff, work_limit, Time.night)
-         # 日勤を週1程度増やすために嵩増し
-        work_limit = round((cal_end - cal_begin).days / 7) * 2.5
-        self.swap(phd_staff, work_limit, Time.day)
-                            
-
-
+        for name in ("水野",):
+            phd_staff = get_staff_by_name(name)
+            work_limit = round((cal_end - cal_begin).days / 7) * 1.5
+            self.swap(phd_staff, work_limit, Time.night)
+            # 日勤を週1程度増やすために嵩増し
+            work_limit = round((cal_end - cal_begin).days / 7) * 2.5
+            self.swap(phd_staff, work_limit, Time.day)
                     
 
 def main():
@@ -565,22 +559,8 @@ def main():
             continue
         monthly_schedules.assign_day_night()
         monthly_schedules.swap_GAIKIN_dummy()
-        '''flag = monthly_schedules.assign_nightshifts()
-        if not flag:
-            continue
-        flag = monthly_schedules.assign_er(Section.s30595)
-        if not flag:
-            continue
         monthly_schedules.swap_phd()
-        flag = monthly_schedules.assign_taitou()
-        if not flag:
-            continue
-        flag = monthly_schedules.assign_extra_shifts2()
-        if not flag:
-            continue
-        flag = monthly_schedules.assign_er(Section.s30599)'''
-        if flag:
-           break
+        break
     print("\n===============generated schedules===============")
     indexes = ["Date", "D_30591", "D_30595", "D_30599", "D_30594", "D_Esub1", "D_Esub2", "D_30596", "D_30597", "D_Isub1", "D_Isub2", "  | ", "N_30595", "N_30599", "N_30596", " || ", "苑田", "帝京", "三井", "大森", "台東", "千葉徳", "  | ", "個人外勤"]
     print("\t".join(indexes))
@@ -605,20 +585,20 @@ def main():
         print(text_color + "\t".join(output) + reset_color) 
 
     print("===============staff work stats===============")
+    print("名前\t\t計算\t(別計算の整合チェック)\t\t\t計算\t(別計算の整合チェック)")
     for staff in staffs:
-        actual_workcount = 0
+        actual_daycount = 0
+        actual_nightcount = 0
         actual_extracount = 0
         for date in target_cal:
             for section in time_section[Time.day]:
                 if monthly_schedules.schedules[date][Time.day][section] == staff.name:
-                    actual_workcount += 1
+                    actual_daycount += 1
             for section in time_section[Time.night]:
                 if monthly_schedules.schedules[date][Time.night][section] == staff.name:
-                    actual_workcount += 1.5
+                    actual_nightcount += 1
             for section in time_section[Time.extra]:
                 if monthly_schedules.schedules[date][Time.extra][section] == staff.name:
                     actual_extracount += 2 if section == Section.taitou else 1
-        print(f"{staff.name}", end="\t")
-        print(f"works* {staff.work_count}({actual_workcount})", end="\t")
-        print(f"extra_works* {staff.extra_count}({actual_extracount})")
+        print(f"{staff.name}\tコマ数: {staff.work_count}\t({actual_daycount + actual_nightcount * 1.5} = DAY:{actual_daycount} + NIGHT:{actual_nightcount})\t外勤数: {staff.extra_count}\t({actual_extracount})")
 main()
