@@ -359,7 +359,6 @@ class Monthly_schedules:
         else:
             return night_list
     def find_GAIKIN(self, date, daily_day_staffs):
-        # 千葉徳、大盛り、苑田、帝京はループ処理
         extra_item_list = [
             ## 千葉徳（月、3-5年）に川田、川上、野田、松山、諏江、池上、堂園、佐藤一
             {"hospital": Section.chibat, "weekday": (0,), "staffs": ("河田", "川上", "野田", "松山", "諏江", "池上", "堂園", "佐藤一")},
@@ -442,6 +441,54 @@ class Monthly_schedules:
                 return True
         print(f"...FAILED")
         return False
+    ##################################################################################################
+    def swap_GAIKIN_dummy(self):
+        extra_item_list = {
+            Section.chibat: ("河田", "川上", "野田", "松山", "諏江", "池上", "堂園", "佐藤一"),
+            Section.oomori: ("木村", "有田", "中野", "佐藤悠", "高井", "佐藤拓"),
+            Section.sonoda: ("河田", "川上", "野田", "松山", "諏江", "池上"),
+            Section.teikyo: ("堂園", "佐藤一", "木村", "有田", "中野", "佐藤悠"),
+            Section.mitsui: ("山本", "堀江", "高井"),
+        }
+        for date in target_cal:
+            for section in time_section[Time.extra]:
+                if self.schedules[date][Time.extra][section] == "Dummy":
+                    stafflist = extra_item_list[section]
+                    day_staffnames = [self.schedules[date][Time.day][section] for section in time_section[Time.day]]
+                    night_staffnames = [self.schedules[date][Time.night][section] for section in time_section[Time.night]]
+                    if date != cal_begin:
+                        previous_night_staffnames = [self.schedules[date - datetime.timedelta(days = 1)][Time.night][section] for section in time_section[Time.night]]
+                    swappable_staffnames = [name for name in stafflist if name in day_staffnames and name not in night_staffnames + previous_night_staffnames]
+                    if len(swappable_staffnames) > 0:
+                        swap_staffname = random.choice(swappable_staffnames) # 交代できる人をみつけたら、personal_scheduleをOFFにしてwork_countも減らしてから割当て
+                        swap_staff = get_staff_by_name(swap_staffname)
+                        erased_section = swap_staff.personal_schedule[date][Time.day]
+                        print(f"DUMMY SWAP {date}: {swap_staffname} {erased_section} -> {section} AND ", end="")
+                        swap_staff.personal_schedule[date][Time.day] = Section.OFF
+                        swap_staff.work_count -= 1
+                        self.assign(date, Time.extra, section, swap_staffname)
+                        self.assign_dummy(date, Time.day, erased_section)
+
+
+                        if erased_section in (Section.sEsub1, Section.s30597, Section.s30591):
+                            print(f"DONE")
+                        elif erased_section in (Section.s30594, Section.s30595, Section.s30596):
+                            replaceable_staffs = [staff for staff in self.assignable_staffs(date, Time.day) if erased_section in staff.certified_section]
+                            if len(replaceable_staffs) == 0:
+                                print(f"CANNOT FILL {erased_section}")
+                            else:
+                                replace_staff = random.choice(replaceable_staffs)
+                                self.assign(date, Time.day, erased_section, replace_staff.name)
+                                print(f"{replace_staff.name} OFF -> {erased_section}")
+                        elif erased_section == Section.s30599:
+                            replaceable_staffs = [staff for staff in self.assignable_staffs(date, Time.day) if staff.rank < 5]
+                            if len(replaceable_staffs) == 0:
+                                replaceable_staffs = [staff for staff in self.assignable_staffs(date, Time.day) if staff.rank >= 5]
+                                if len(replaceable_staffs) == 0:
+                                    print(f"CANNOT FILL {erased_section}")
+                            replace_staff = random.choice(replaceable_staffs)
+                            self.assign(date, Time.day, erased_section, replace_staff.name)
+                            print(f"{replace_staff.name} OFF -> {erased_section}")
     def swap(self, phd_staff, work_limit, time: Time):
         swap_count = 0
         time_count = 1 if time == Time.day else 1.5
@@ -494,6 +541,10 @@ class Monthly_schedules:
          # 日勤を週1程度増やすために嵩増し
         work_limit = round((cal_end - cal_begin).days / 7) * 2.5
         self.swap(phd_staff, work_limit, Time.day)
+                            
+
+
+                    
 
 def main():
     print_ng_count(staffs)
@@ -513,6 +564,7 @@ def main():
         if not flag:
             continue
         monthly_schedules.assign_day_night()
+        monthly_schedules.swap_GAIKIN_dummy()
         '''flag = monthly_schedules.assign_nightshifts()
         if not flag:
             continue
