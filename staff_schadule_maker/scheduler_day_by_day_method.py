@@ -268,9 +268,9 @@ class Monthly_schedules:
                 previous_staff_name = None
                 while cal_end > check_date:
                     block_assignable_stafflist = [[name, available_days, work_count] for name, available_days, work_count in self.block_assignable_stafflist(check_date, min_blockdate = 1) if name in main_staffs and name != previous_staff_name]
-                    block_num = random.choice([3,4,4,5,5,5,5,5]) if (cal_end - check_date).days > 4 else (cal_end - check_date).days + 1 # 単なる重み付けrandom、最終日近辺はブロック端数調整
+                    block_num = random.choice([4,4,5,5,5,5,5]) if (cal_end - check_date).days > 4 else (cal_end - check_date).days + 1 # 単なる重み付けrandom、最終日近辺はブロック端数調整
                     block_num_stafflist = [staff for staff in block_assignable_stafflist if staff[1] >= block_num]
-                    if len(block_num_stafflist) == 0: #main_staffsから誰も割り振れなくて
+                    if len(block_num_stafflist) == 0: #main_staffsを割振れない場合。previous_staffは変えないように変更。
                         if dummy_flag: #1回目はスルー、2回目は下のフラグ立ってるから分岐
                             helpers = [staff for staff in new_monthly_schedules.assignable_staffs(check_date, Time.day) if staff.name in help_staffs]
                             if len(helpers) == 0:
@@ -284,11 +284,11 @@ class Monthly_schedules:
                             else:
                                 helper = random.choice(helpers)
                                 new_monthly_schedules.assign(check_date, Time.day, main_section, helper.name) #help_staffsがいればそれをassign。ただしフラグは戻さない。
-                                previous_staff_name = helper.name
+                                # previous_staff_name = helper.name
                                 check_date += datetime.timedelta(days= 1)
                                 continue
                         dummy_flag = True
-                        previous_staff_name = None
+                        # previous_staff_name = None
                         check_date += datetime.timedelta(days= 1)
                         continue
                     block_num_stafflist = sorted(block_num_stafflist, key = itemgetter(2))
