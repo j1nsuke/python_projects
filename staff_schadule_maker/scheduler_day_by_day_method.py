@@ -21,9 +21,9 @@ def is_weekday(date): # 週末＋祝日（2026年末分まで）を除外
     else:
         return date.weekday() < 5
 class Time(Enum):
-    day = "Day"
-    night = "Night"
-    extra = "Extra"
+    day = "日勤"
+    night = "夜勤"
+    extra = "外勤"
 class Section(Enum):
     s30591 = "30591"
     s30595 = "30595"
@@ -163,7 +163,7 @@ class Monthly_schedules:
         time_category = Time.night if time == Time.night else Time.day
         check_isoff = (staff.personal_schedule[date][time_category] == Section.OFF)
         if not check_isoff:
-            print(f"cannot assign {name} on {date},{time},{section}")
+            print(f"cannot assign {name} on {date.strftime('%m-%d')},{time.value},{section.value}")
             return None
         if section == Section.extras:
             self.schedules[date][time][section].append(name)
@@ -346,10 +346,10 @@ class Monthly_schedules:
                     new_monthly_schedules = deepcopy(self)
                 else:
                     self.schedules = new_monthly_schedules.schedules
-                    print(f"...DONE")
+                    print(f"...DONE                        ")
                     break
             if restart_flag:
-                print("...FAILED")
+                print("...FAILED                          ")
                 return False
         return True
     def assign_day_night(self): # 30595, 30599, 夜勤, 外勤を日ごとに割り当て
@@ -507,7 +507,7 @@ class Monthly_schedules:
                         swap_staffname = random.choice(swappable_staffnames) # 交代できる人をみつけたら、personal_scheduleをOFFにしてwork_countも減らしてから割当て
                         swap_staff = get_staff_by_name(swap_staffname)
                         erased_section = swap_staff.personal_schedule[date][Time.day]
-                        print(f"DUMMY SWAP {date.strftime('%m-%d')}: {swap_staffname} {erased_section} -> {section} AND ", end="")
+                        print(f"DUMMY SWAP {date.strftime('%m-%d')}: {swap_staffname} {erased_section.value} -> {section.value} AND ", end="")
                         swap_staff.personal_schedule[date][Time.day] = Section.OFF
                         swap_staff.work_count -= 1
                         self.assign(date, Time.extra, section, swap_staffname)
@@ -565,7 +565,7 @@ class Monthly_schedules:
             candidate.work_count -= time_count
             candidate.personal_schedule[date][time] = Section.OFF
             self.assign(date, time, section, phd_staff.name)
-            print(f"PhD SWAP {date.strftime('%m-%d')} {time}: {section} {candidate.name} -> {phd_staff.name}")
+            print(f"PhD SWAP {date.strftime('%m-%d')} {time.value}: {section.value} {candidate.name} -> {phd_staff.name}")
     def swap_phd(self):
         # 大学院2年目以降
         for name in ("高井", "佐藤拓", "田上"):
@@ -587,7 +587,7 @@ class Monthly_schedules:
             for time in (Time.night, Time.day):
                 for section in time_section[time]:
                     if self.schedules[date][time][section] == "Dummy":
-                        print(f"DUMMY FOUND {date.strftime('%m-%d')} {time}...{section} ", end="")
+                        print(f"DUMMY FOUND {date.strftime('%m-%d')} {time.value}...{section.value} ", end="")
                         if section in (Section.sEsub1, Section.s30597, Section.s30591):
                             self.schedules[date][time][section] = None
                             print("ERACED")
