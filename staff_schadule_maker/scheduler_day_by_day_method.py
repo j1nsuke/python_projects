@@ -163,7 +163,7 @@ class Monthly_schedules:
         time_category = Time.night if time == Time.night else Time.day
         check_isoff = (staff.personal_schedule[date][time_category] == Section.OFF)
         if not check_isoff:
-            print(f"cannot assign {name} on {date.strftime('%m-%d')},{time.value},{section.value}")
+            print(f"cannot assign {name} on {date.strftime('%m-%d')} {section.value}{time.value}")
             return None
         if section == Section.extras:
             self.schedules[date][time][section].append(name)
@@ -467,8 +467,9 @@ class Monthly_schedules:
         return er_list        
     def find_free_candidates(self):
         freestaffs = [staff for staff in staffs if staff.rank < 5]
+        print("")
+        print("連続日勤可能なフリー候補期間")
         for staff in freestaffs:
-            print('')
             print(f"{staff.name}: ", end='\t')
             date = cal_begin
             unoccupied_cal = []
@@ -481,9 +482,10 @@ class Monthly_schedules:
                         serial_start_date = date - datetime.timedelta(days = workable_days)
                         unoccupied_cal.append([serial_start_date, workable_days])
                         if workable_days >= 3:
-                            print(f"{date.strftime('%m-%d')} -> {workable_days} 連 日勤可", end='\t')
+                            print(f"{date.strftime('%m-%d')}から{workable_days}日間", end='｜')
                         workable_days = 0
                 date += datetime.timedelta(days = 1)
+            print("")
     def swap_GAIKIN_dummy(self):
         extra_item_list = {
             Section.chibat: ("河田", "川上", "野田", "松山", "諏江", "池上", "堂園", "佐藤一"),
@@ -565,7 +567,7 @@ class Monthly_schedules:
             candidate.work_count -= time_count
             candidate.personal_schedule[date][time] = Section.OFF
             self.assign(date, time, section, phd_staff.name)
-            print(f"PhD SWAP {date.strftime('%m-%d')} {time.value}: {section.value} {candidate.name} -> {phd_staff.name}")
+            print(f"PhD SWAP {date.strftime('%m-%d')} {section.value}{time.value}: {candidate.name} -> {phd_staff.name}")
     def swap_phd(self):
         # 大学院2年目以降
         for name in ("高井", "佐藤拓", "田上"):
@@ -587,7 +589,7 @@ class Monthly_schedules:
             for time in (Time.night, Time.day):
                 for section in time_section[time]:
                     if self.schedules[date][time][section] == "Dummy":
-                        print(f"DUMMY FOUND {date.strftime('%m-%d')} {time.value}...{section.value} ", end="")
+                        print(f"DUMMY FOUND {date.strftime('%m-%d')} {section.value}{time.value}... ", end="")
                         if section in (Section.sEsub1, Section.s30597, Section.s30591):
                             self.schedules[date][time][section] = None
                             print("ERACED")
