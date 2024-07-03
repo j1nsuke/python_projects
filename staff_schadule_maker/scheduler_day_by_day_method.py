@@ -121,14 +121,15 @@ original_staffs = [
 staffs = deepcopy(original_staffs)
 
 def print_ng_count(staffs):
-    print("PRINT TOO MUCH NGs on...")
+    print("【休暇希望が特に多い日リスト】")
     for date in target_cal:
         count = 0
         for staff in staffs:
             if date in staff.ng_request:
                 count += 1
         if count > 4:
-            print(f"{date}, ng={count}")
+            print(f"{date.strftime('%m-%d')} 休暇希望者 {count}人")
+    print('==========================')
 def get_staff_by_name(name):
     return next((staff for staff in staffs if staff.name == name), None)
 class Monthly_schedules:
@@ -168,7 +169,7 @@ class Monthly_schedules:
         time_category = Time.night if time == Time.night else Time.day
         check_isoff = (staff.personal_schedule[date][time_category] == Section.OFF)
         if not check_isoff:
-            print(f"cannot assign {name} on {date.strftime('%m-%d')} {section.value}{time.value}")
+            print(f"{name} の割当て失敗...{date.strftime('%m-%d')} {section.value}{time.value}")
             return None
         if section == Section.extras:
             self.schedules[date][time][section].append(name)
@@ -276,7 +277,7 @@ class Monthly_schedules:
                 self.assign(date, Time.night, Section.s30596, "山本")
     def assign_taitou(self):
         for _ in range(20):
-            print(f"\rASSIGN EXTRA {_+1}", end="")
+            print(f"\rランダム割当て 台東 {_+1}", end="")
             saved_staff_states =  {staff.name: deepcopy(staff.personal_schedule) for staff in staffs}
             new_monthly_schedules = deepcopy(self)
             restart_flag = False
@@ -290,7 +291,7 @@ class Monthly_schedules:
                     if len(staff_namelist) == 0:
                         staff_namelist = [[staff.name, staff.extra_count] for staff in staffs if staff.name in monthly_taitou_help and staff.available_days(date) >= 1]
                         if len(staff_namelist) == 0:
-                            print(f"...FAILED {date} for 台東")
+                            print(f"...失敗 {date}", end="")
                             restart_flag = True
                             break
                     min_count = sorted(staff_namelist, key=itemgetter(1))[0][1]
@@ -305,9 +306,9 @@ class Monthly_schedules:
                 continue
             else:
                 self.schedules = new_monthly_schedules.schedules
-                print(f"...DONE")
+                print(f"...成功                       ")
                 return True
-        print(f"...FAILED")
+        print(f"...失敗")
         return False
     def assign_icu_and_eicu(self): # 30594, Esub, 30596, 30597を4-6日間ブロックで割り当て
         icu_itemsets = [
@@ -320,7 +321,7 @@ class Monthly_schedules:
             main_staffs = item["main_staffs"]
             night_section = item["night_section"]
             for _ in range(100):
-                print(f"\rASSIGN {main_section.value} {_+1}", end="")
+                print(f"\rランダム割当て {main_section.value} {_+1}", end="")
                 new_monthly_schedules = deepcopy(self)
                 saved_staff_states =  {staff.name: [deepcopy(staff.work_count), deepcopy(staff.personal_schedule)] for staff in staffs}
                 check_date = cal_begin
@@ -330,7 +331,7 @@ class Monthly_schedules:
                 while cal_end > check_date:
                     block_assignable_stafflist = [[name, available_days, work_count] for name, available_days, work_count in self.block_assignable_stafflist(check_date, min_blockdate = 1) if name in main_staffs and name not in (previous_staff_name_a, previous_staff_name_b)]
                     if len(block_assignable_stafflist) == 0:
-                        print(f"\rASSIGN {main_section.value} {_+1}...FAILED ON {check_date}", end="")
+                        print(f"\rランダム割当て {main_section.value} {_+1}...失敗 {check_date}", end="")
                         restart_flag = True
                         break
                     max_available_days = max([staff[1] for staff in block_assignable_stafflist])
@@ -365,13 +366,14 @@ class Monthly_schedules:
                     new_monthly_schedules = deepcopy(self)
                 else:
                     self.schedules = new_monthly_schedules.schedules
-                    print(f"...DONE                        ")
+                    print(f"...成功                        ")
                     break
             if restart_flag:
-                print("...FAILED                          ")
+                print("...失敗                          ")
                 return False
         return True
     def assign_day_night(self): # 30595, 30599, 夜勤, 外勤を日ごとに割り当て
+        print("ランダム割当て 外勤-夜勤-日勤...Dummy込みで必ず成功")
         for date in target_cal:
             # 外勤→夜勤→日勤
             extra_list = []
@@ -538,12 +540,12 @@ class Monthly_schedules:
                         previous_night_staffnames = [self.schedules[date - datetime.timedelta(days = 1)][Time.night][section] for section in time_section[Time.night]]
                     swappable_staffnames = [name for name in stafflist if name in day_staffnames and name not in night_staffnames + previous_night_staffnames]
                     if len(swappable_staffnames) == 0:
-                        print(f"DUMMY SWAP {date.strftime('%m-%d')}: NONE SWAPPABLE")
+                        print(f"外勤Dummy 振替え {date.strftime('%m-%d')}: 候補者なし")
                     else:
                         swap_staffname = random.choice(swappable_staffnames) # 交代できる人をみつけたら、personal_scheduleをOFFにしてwork_countも減らしてから割当て
                         swap_staff = get_staff_by_name(swap_staffname)
                         erased_section = swap_staff.personal_schedule[date][Time.day]
-                        print(f"DUMMY SWAP {date.strftime('%m-%d')}: {swap_staffname} {erased_section.value} -> {section.value} AND ", end="")
+                        print(f"外勤Dummy 振替え {date.strftime('%m-%d')}: {swap_staffname} {erased_section.value} -> {section.value} ＋ ", end="")
                         swap_staff.personal_schedule[date][Time.day] = Section.OFF
                         swap_staff.work_count -= 1
                         self.assign(date, Time.extra, section, swap_staffname)
@@ -551,24 +553,24 @@ class Monthly_schedules:
 
 
                         if erased_section in (Section.sEsub1, Section.s30597, Section.s30591):
-                            print(f"DONE")
+                            print(f"{erased_section.value} -> 割当てなし")
                         elif erased_section in (Section.s30594, Section.s30595, Section.s30596):
                             replaceable_staffs = [staff for staff in self.assignable_staffs(date, Time.day) if erased_section in staff.certified_section]
                             if len(replaceable_staffs) == 0:
-                                print(f"CANNOT FILL {erased_section}")
+                                print(f"{erased_section.value} -> 割当て失敗")
                             else:
                                 replace_staff = random.choice(replaceable_staffs)
                                 self.assign(date, Time.day, erased_section, replace_staff.name)
-                                print(f"{replace_staff.name} OFF -> {erased_section}")
+                                print(f"{replace_staff.name} OFF -> {erased_section.value}")
                         elif erased_section == Section.s30599:
                             replaceable_staffs = [staff for staff in self.assignable_staffs(date, Time.day) if staff.rank < 5]
                             if len(replaceable_staffs) == 0:
                                 replaceable_staffs = [staff for staff in self.assignable_staffs(date, Time.day) if staff.rank >= 5]
                                 if len(replaceable_staffs) == 0:
-                                    print(f"CANNOT FILL {erased_section}")
+                                    print(f"{erased_section.value} -> 割当て失敗")
                             replace_staff = random.choice(replaceable_staffs)
                             self.assign(date, Time.day, erased_section, replace_staff.name)
-                            print(f"{replace_staff.name} Section.OFF -> {erased_section}")
+                            print(f"{replace_staff.name} OFF -> {erased_section.value}")
     def swap(self, phd_staff, work_limit, time: Time):
         while work_limit >= phd_staff.work_count:
             time_count = 1 if time == Time.day else 1.5
@@ -595,7 +597,7 @@ class Monthly_schedules:
                     swapping_staff = get_staff_by_name(swapping_name)
                     candidate_list.append([date, section, swapping_staff, swapping_staff.work_count])
                 if len(candidate_list) == 0:
-                    print("NO MORE SWAPPABLE")
+                    print(f"{phd_staff.name}...交換できる勤務可能日が不足")
                     break
             candidate_list = sorted(candidate_list, key=itemgetter(3), reverse=True)
             date, section, candidate, candidate_wc = candidate_list[0]
@@ -603,7 +605,7 @@ class Monthly_schedules:
             candidate.work_count -= time_count
             candidate.personal_schedule[date][time] = Section.OFF
             self.assign(date, time, section, phd_staff.name)
-            print(f"PhD SWAP {date.strftime('%m-%d')} {section.value}{time.value}: {candidate.name} -> {phd_staff.name}")
+            print(f"院生 振替え {date.strftime('%m-%d')} {section.value}{time.value}: {candidate.name} -> {phd_staff.name}")
     def swap_phd(self):
         # 大学院2年目以降
         for name in ("高井", "佐藤拓", "田上"):
@@ -625,35 +627,35 @@ class Monthly_schedules:
             for time in (Time.night, Time.day):
                 for section in time_section[time]:
                     if self.schedules[date][time][section] == "Dummy":
-                        print(f"DUMMY FOUND {date.strftime('%m-%d')} {section.value}{time.value}... ", end="")
+                        print(f"日勤夜勤Dummy {date.strftime('%m-%d')} {section.value}{time.value}: ", end="")
                         if section in (Section.sEsub1, Section.s30597, Section.s30591):
                             self.schedules[date][time][section] = None
-                            print("ERACED")
+                            print(f"Dummy -> 割当てなし")
                         elif section in (Section.s30594, Section.s30595, Section.s30596):
                             asada = get_staff_by_name("浅田")
                             help_asada = [asada, ] if asada.available(date, time) else []
                             replaceable_staffs = [staff for staff in self.assignable_staffs(date, time) if section in staff.certified_section] + help_asada
                             if len(replaceable_staffs) == 0:
-                                print("CANNOT FILL")
+                                print("Dummy -> 割当て失敗")
                             else:
                                 replace_staff = random.choice(replaceable_staffs)
                                 self.assign(date, time, section, replace_staff.name)
-                                print(f"FILLED by {replace_staff.name}")
+                                print(f"Dummy -> {replace_staff.name}")
                         elif section == Section.s30599:
                             replaceable_staffs = [staff for staff in self.assignable_staffs(date, time) if staff.rank < 5]
                             if len(replaceable_staffs) == 0:
                                 replaceable_staffs = [staff for staff in self.assignable_staffs(date, time) if staff.rank >= 5]
                                 if len(replaceable_staffs) == 0:
-                                    print(f"CANNOT FILL")
+                                    print(f"Dummy -> 割当て失敗")
                             replace_staff = random.choice(replaceable_staffs)
                             self.assign(date, time, section, replace_staff.name)
-                            print(f"FILLED by {replace_staff.name}")
+                            print(f"Dummy -> {replace_staff.name}")
 ##################################################################################################
 
 def main():
     print_ng_count(staffs)
     for i in range(50):
-        print(f">>> RUNNING ATTEMPT {i+1}")
+        print(f"\n>>> スケジュール作成開始... {i+1}回目")
         for staff in staffs:
             staff.work_count = 0
             staff.extra_count = 0
