@@ -325,9 +325,10 @@ class Monthly_schedules:
                 saved_staff_states =  {staff.name: [deepcopy(staff.work_count), deepcopy(staff.personal_schedule)] for staff in staffs}
                 check_date = cal_begin
                 restart_flag = False
-                previous_staff_name = None
+                previous_staff_name_a = None
+                previous_staff_name_b = None
                 while cal_end > check_date:
-                    block_assignable_stafflist = [[name, available_days, work_count] for name, available_days, work_count in self.block_assignable_stafflist(check_date, min_blockdate = 1) if name in main_staffs and name != previous_staff_name]
+                    block_assignable_stafflist = [[name, available_days, work_count] for name, available_days, work_count in self.block_assignable_stafflist(check_date, min_blockdate = 1) if name in main_staffs and name not in (previous_staff_name_a, previous_staff_name_b)]
                     if len(block_assignable_stafflist) == 0:
                         print(f"\rASSIGN {main_section.value} {_+1}...FAILED ON {check_date}", end="")
                         restart_flag = True
@@ -351,7 +352,12 @@ class Monthly_schedules:
                         if i == block_num - 1:
                             if new_monthly_schedules.schedules[check_date + datetime.timedelta(days = i)][Time.night][night_section] is None:
                                 new_monthly_schedules.assign(check_date + datetime.timedelta(days = i), Time.night, night_section, name) if name != "池上" else new_monthly_schedules.assign(check_date + datetime.timedelta(days = i), Time.night, Section.s30599, name)
-                    previous_staff_name = name
+                    if previous_staff_name_a:
+                        previous_staff_name_b = previous_staff_name_a
+                        previous_staff_name_a = name
+                    else:
+                        previous_staff_name_a = name
+
                     check_date += datetime.timedelta(days = block_num - 1)
                 if restart_flag:
                     for staff in staffs:
