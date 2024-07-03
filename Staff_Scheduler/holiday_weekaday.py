@@ -1,8 +1,4 @@
 import datetime
-# カレンダーの用意
-cal_begin   = datetime.date(2024,7,1)
-cal_end     = datetime.date(2024,9,30)
-target_cal  = [cal_begin + datetime.timedelta(days = i) for i in range (0, (cal_end - cal_begin).days + 1)]
 def is_weekday(date): # 週末＋祝日（2026年末分まで）を除外
     jpholidays = [
     datetime.date(2024, 1, 1), datetime.date(2024, 1, 8), datetime.date(2024, 2, 11), datetime.date(2024, 2, 12), datetime.date(2024, 3, 20), datetime.date(2024, 4, 29), datetime.date(2024, 5, 3), datetime.date(2024, 5, 4), datetime.date(2024, 5, 5), datetime.date(2024, 5, 6),

@@ -1,10 +1,9 @@
-import random
 import datetime
-import staff
-import holiday_weekaday
+import random
 from copy import deepcopy
 from operator import itemgetter
-
+from .holiday_weekaday import is_weekday
+from .staff import Time, Section, get_staff_by_name, cal_begin, cal_end, target_cal, time_section, staffs
 
 class Monthly_schedules:
     def __init__(self) -> None:
@@ -94,7 +93,6 @@ class Monthly_schedules:
             print(text_color + "\t".join(output) + reset_color)
         print("\t".join(indexes))
         print('')
-        
     def print_staff_stats(self):
         print("===============staff work stats===============")
         print("名前\t\t計算\t(別計算の整合チェック)\t\t\t計算\t(別計算の整合チェック)")
@@ -131,7 +129,6 @@ class Monthly_schedules:
             print(text_color + f"{date.strftime('%m-%d')}", end='\t')
             print('\t'.join(cals) + reset_color)
         print('\t'.join(index))
-
     ##################################################################################################
     def assign_30591(self): # 30591を割り当て  山本：火水木30591、日曜夜30596 浅田：その他平日30591
         for date in target_cal:
@@ -141,41 +138,6 @@ class Monthly_schedules:
                 self.assign(date, Time.day, Section.s30591, "浅田")
             elif date.weekday() == 6:
                 self.assign(date, Time.night, Section.s30596, "山本")
-    def assign_taitou(self):
-        for _ in range(20):
-            print(f"\rASSIGN EXTRA {_+1}", end="")
-            saved_staff_states =  {staff.name: deepcopy(staff.personal_schedule) for staff in staffs}
-            new_monthly_schedules = deepcopy(self)
-            restart_flag = False
-            for date in target_cal:
-                # 台東(土日)、台東の月1縛りのため余計なギミックあり
-                if date == date.replace(day=1):
-                    monthly_taitou_box = ["河田", "川上", "野田", "松山", "諏江", "池上", "堂園", "佐藤一"]
-                    monthly_taitou_help = ["木村", "有田", "中野", "佐藤悠"]
-                if date.weekday() in (5, 6):
-                    staff_namelist = [[staff.name, staff.extra_count] for staff in staffs if staff.name in monthly_taitou_box and staff.available_days(date) >= 1]
-                    if len(staff_namelist) == 0:
-                        staff_namelist = [[staff.name, staff.extra_count] for staff in staffs if staff.name in monthly_taitou_help and staff.available_days(date) >= 1]
-                        if len(staff_namelist) == 0:
-                            print(f"...FAILED {date} for 台東")
-                            restart_flag = True
-                            break
-                    min_count = sorted(staff_namelist, key=itemgetter(1))[0][1]
-                    staff_namelist = [name for name, work_count in staff_namelist if work_count == min_count]
-                    name = random.choice(staff_namelist)
-                    new_monthly_schedules.assign(date, Time.extra, Section.taitou, name)
-                    monthly_taitou_box.remove(name) if name in monthly_taitou_box else monthly_taitou_help.remove(name)
-            if restart_flag == True:
-                for staff in staffs:
-                    staff.extra_count = 0
-                    staff.personal_schedule = saved_staff_states[staff.name]
-                continue
-            else:
-                self.schedules = new_monthly_schedules.schedules
-                print(f"...DONE")
-                return True
-        print(f"...FAILED")
-        return False
     def assign_icu_and_eicu(self): # 30594, Esub, 30596, 30597を4-6日間ブロックで割り当て
         icu_itemsets = [
             {"main_staffs": ["佐藤悠", "木村", "佐藤一"],      "main_section": Section.s30596, "sub_section": Section.s30597, "night_section": Section.s30596},
@@ -232,6 +194,41 @@ class Monthly_schedules:
                 print("...FAILED                          ")
                 return False
         return True
+    def assign_taitou(self):
+        for _ in range(20):
+            print(f"\rASSIGN EXTRA {_+1}", end="")
+            saved_staff_states =  {staff.name: deepcopy(staff.personal_schedule) for staff in staffs}
+            new_monthly_schedules = deepcopy(self)
+            restart_flag = False
+            for date in target_cal:
+                # 台東(土日)、台東の月1縛りのため余計なギミックあり
+                if date == date.replace(day=1):
+                    monthly_taitou_box = ["河田", "川上", "野田", "松山", "諏江", "池上", "堂園", "佐藤一"]
+                    monthly_taitou_help = ["木村", "有田", "中野", "佐藤悠"]
+                if date.weekday() in (5, 6):
+                    staff_namelist = [[staff.name, staff.extra_count] for staff in staffs if staff.name in monthly_taitou_box and staff.available_days(date) >= 1]
+                    if len(staff_namelist) == 0:
+                        staff_namelist = [[staff.name, staff.extra_count] for staff in staffs if staff.name in monthly_taitou_help and staff.available_days(date) >= 1]
+                        if len(staff_namelist) == 0:
+                            print(f"...FAILED {date} for 台東")
+                            restart_flag = True
+                            break
+                    min_count = sorted(staff_namelist, key=itemgetter(1))[0][1]
+                    staff_namelist = [name for name, work_count in staff_namelist if work_count == min_count]
+                    name = random.choice(staff_namelist)
+                    new_monthly_schedules.assign(date, Time.extra, Section.taitou, name)
+                    monthly_taitou_box.remove(name) if name in monthly_taitou_box else monthly_taitou_help.remove(name)
+            if restart_flag == True:
+                for staff in staffs:
+                    staff.extra_count = 0
+                    staff.personal_schedule = saved_staff_states[staff.name]
+                continue
+            else:
+                self.schedules = new_monthly_schedules.schedules
+                print(f"...DONE")
+                return True
+        print(f"...FAILED")
+        return False
     def assign_day_night(self): # 30595, 30599, 夜勤, 外勤を日ごとに割り当て
         for date in target_cal:
             # 外勤→夜勤→日勤
@@ -492,4 +489,3 @@ class Monthly_schedules:
                             replace_staff = random.choice(replaceable_staffs)
                             self.assign(date, time, section, replace_staff.name)
                             print(f"FILLED by {replace_staff.name}")
-##################################################################################################
